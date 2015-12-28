@@ -1,20 +1,8 @@
+/// <reference path='../typings/tsd.d.ts'/>
 /// <reference path='app.ts'/>
 /// <reference path='config.ts'/>
-/// <reference path='../typings/tsd.d.ts'/>
 
 'use strict';
-
-/*
-module THREE {
-	class Vector3 {
-		setVector(v) {
-			this.setX(v.x);
-			this.setY(v.y);
-			this.setZ(v.z);
-		}
-	}
-}
-*/
 
 var renderer, scene, app;
 
@@ -54,22 +42,16 @@ function onResize(e) {
 	renderer.setSize(config.width(), config.height());
 }
 
-interface Aaa{
-	requestAnimFrame: Function
-}
-
 function animloop(){
 
-	// let w: Aaa = <Aaa>window;
 	if (window.hasOwnProperty('requestAnimFrame')){
 		let w: any = window;
-		w.requestAnimFrame(animloop); // TODO better interop with other browsers
+		w.requestAnimFrame(animloop);
 	}
 
 	app.update();
 
 	renderer.render(scene, app.getCamera());
-
 }
 
 init();

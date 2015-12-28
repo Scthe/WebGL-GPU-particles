@@ -1,8 +1,14 @@
 /// <reference path='../typings/tsd.d.ts'/>
 
 const config = {
+
+	background: new THREE.Color(0x404040),
+	width: width,
+	height: height,
+
 	camera: {
-		angle: 45,
+		name: 'camera',
+		angle: 28, // 45
 		near: 0.1,
 		far: 10000,
 		aspect: () => {
@@ -11,8 +17,9 @@ const config = {
 		position: new THREE.Vector3(0, 0, 100),
 		lookAt: new THREE.Vector3()
 	},
+
 	lights: [
-		{
+		/*{
 			name: 'light_1',
 			intensity: 1.0,
 			distance: 2200,
@@ -32,15 +39,47 @@ const config = {
 			distance: 2100,
 			decay: 0.6,
 			position: new THREE.Vector3(-150, 40, -420)
-		}
+		}*/
 	],
+
+	particles: {
+		spawnOptions: {
+			position: new THREE.Vector3(),
+			velocity: new THREE.Vector3(),
+			positionRandomness: 0.3,
+			velocityRandomness: 0.5,
+			color: 0xE65946,
+			colorRandomness: 0.2,
+			turbulence: 0.5,
+			lifetime: 2.0,
+			size: 5.0,
+			sizeRandomness: 1.0
+		},
+		system: {
+			spawnRate: 5000,
+			count: 100000,
+			horizontalSpeed: 1.5,
+			verticalSpeed: 1.33,
+			timeScale: 1,
+			noiseTexture: 'vendor/textures/perlin-512.png',
+			spriteTexture: 'vendor/textures/particle2.png',
+			maxVel: 2,
+			maxSource: 250
+		},
+		position: (tick: number, opt) => {
+			return new THREE.Vector3(
+				Math.sin(tick * opt.horizontalSpeed) * 20,
+				Math.sin(tick * opt.verticalSpeed) * 10,
+				Math.sin(tick * opt.horizontalSpeed + opt.verticalSpeed) * 5
+			);
+		}
+	},
+
 	fog: {
+		enabled: false,
 		color: 0xf0f0f0,
 		density: 0.0005
-	},
-	background: new THREE.Color(0xe3e3e3),
-	width: width,
-	height: height
+	}
 };
 
 function width(){

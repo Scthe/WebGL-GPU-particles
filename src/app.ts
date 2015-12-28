@@ -7,14 +7,12 @@ module App {
 	export class App {
 
 		private loadedDefer: Q.Deferred<THREE.Scene>;
-		private camera;
+		private camera: THREE.PerspectiveCamera;
 		private clock: THREE.Clock;
 		private tick: number;
 		private particleSystem: GpuParticles.GpuParticles;
 
 		constructor(){
-			// console.log('App()');
-
 			this.loadedDefer = Q.defer<THREE.Scene>();
 		}
 
@@ -22,20 +20,65 @@ module App {
 			this.clock = new THREE.Clock(true)
 			this.tick = 0;
 
-			// camera
-			var cameraOpt = config.camera;
-			this.camera = new THREE.PerspectiveCamera(
-				28, //cameraOpt.angle,
-				cameraOpt.aspect(),
-				cameraOpt.near,
-				cameraOpt.far);
-			this.camera.name = 'camera';
-			// this.camera.lookAt(cameraOpt.lookAt);
-			// this.camera.position.setVector(cameraOpt.position);
-			this.camera.position.setZ(100); // TODO
-
 			// this.controls = new THREE.OrbitControls(this.camera);
 
+			this.camera = this.createCamera(config.camera, 'camera');
+			var lights = this.createLights(config.lights);
+			var auxObjects = this.createAuxObjects();
+
+			this.particleSystem = new GpuParticles.GpuParticles();
+			this.particleSystem.init();
+
+			var sceneAddObjects = (objectsArray: Array<THREE.Object3D>) => {
+				_.each(objectsArray, (o) => { scene.add(o); })
+			};
+			scene.add(this.camera);
+			scene.add(this.particleSystem);
+			sceneAddObjects(lights);
+			sceneAddObjects(auxObjects);
+
+			if (config.fog.enabled){
+				scene.fog = new THREE.FogExp2(config.fog.color, config.fog.density);
+			}
+
+			return this.loadedDefer.promise;
+		}
+
+		private createCamera(cameraOpt, name: string): THREE.PerspectiveCamera {
+			var camera = new THREE.PerspectiveCamera(
+											cameraOpt.angle,
+											cameraOpt.aspect(),
+											cameraOpt.near,
+											cameraOpt.far);
+			camera.name = cameraOpt.name;
+			camera.lookAt(cameraOpt.lookAt);
+			camera.position.set(cameraOpt.position.x, cameraOpt.position.y, cameraOpt.position.z);
+			return camera;
+		}
+
+		private createLights(lightCfg): Array<THREE.PointLight> {
+			var lightsArr = [],
+					createLight = (lCfg) => {
+						var pointLight = new THREE.PointLight(lCfg.color);
+						pointLight.name = lCfg.name;
+						pointLight.position.set(lCfg.position.x, lCfg.position.y, lCfg.position.z);
+
+						var props = ['intensity', 'distance', 'decay'];
+						_.each(props, p => {
+							if (lCfg.hasOwnProperty(p)){
+								pointLight[p] = lCfg[p];
+							}
+						});
+
+						lightsArr.push(pointLight);
+					};
+
+			_.each(lightCfg, createLight);
+
+			return lightsArr;
+		}
+
+		private createAuxObjects(): Array<THREE.Object3D>{
 			/*
 			var sphereMaterial = new THREE.MeshLambertMaterial({
 				color: 0xCC0000
@@ -45,61 +88,25 @@ module App {
 				new THREE.SphereGeometry(radius, segments, rings),
 				sphereMaterial);
 			*/
-
-			// light
-/*
-			var lightCfg = config.lights;
-			_.each(lightCfg, (lCfg) => {
-				var pointLight = new THREE.PointLight(lCfg.color);
-				pointLight.name = lCfg.name;
-				// pointLight.position.setVector(lCfg.position);
-
-				var props = ['intensity', 'distance', 'decay'];
-				_.each(props, p => {
-					if(lCfg.hasOwnProperty(p)){
-						pointLight[p] = lCfg[p];
-					}
-				});
-
-				scene.add(pointLight);
-			});
-			*/
-
-			// scene.fog = new THREE.FogExp2(config.fog.color, config.fog.density);
-
-			this.particleSystem = new GpuParticles.GpuParticles();
-			this.particleSystem.init();
-			scene.add(this.particleSystem);
-
-			// scene.add(this.sphere);
-			scene.add(this.camera);
-
-			return this.loadedDefer.promise;
+			return [];
 		}
 
 		update(){
 			// this.controls.update();
-			var spawnerOptions = {
-				spawnRate: 5000,
-				horizontalSpeed: 1.5,
-				verticalSpeed: 1.33,
-				timeScale: 1
-			}
+			this.updateParticles(config.particles);
+		}
 
-			var delta = this.clock.getDelta() * spawnerOptions.timeScale;
+		private updateParticles(opt): void{
+			var delta = this.clock.getDelta() * opt.system.timeScale;
 			this.tick = Math.max(this.tick + delta, 0);
 
+			var systemPosition = opt.position(this.tick, opt.system);
 
 			if (delta > 0) {
-				var spawnOpt = {
-					position: new THREE.Vector3(
-						Math.sin(this.tick * spawnerOptions.horizontalSpeed) * 20,
-						Math.sin(this.tick * spawnerOptions.verticalSpeed) * 10,
-						Math.sin(this.tick * spawnerOptions.horizontalSpeed + spawnerOptions.verticalSpeed) * 5
-					)
-				};
+				var spawnOpt = _.extend({}, opt.spawnOptions);
+				spawnOpt.position = systemPosition;
 
-				for (var x = 0; x < spawnerOptions.spawnRate * delta; x++) {
+				for (var x = 0; x < opt.system.spawnRate * delta; x++) {
 					this.particleSystem.spawnParticle(spawnOpt);
 				}
 			}
