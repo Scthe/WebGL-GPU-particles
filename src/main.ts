@@ -1,6 +1,7 @@
 /// <reference path='../typings/tsd.d.ts'/>
-/// <reference path='app.ts'/>
-/// <reference path='config.ts'/>
+/// <reference path='./app.ts'/>
+/// <reference path='./config.ts'/>
+/// <reference path="./utils/shaderLoader.ts"/>
 
 'use strict';
 
@@ -28,7 +29,9 @@ function init() {
 
 	window.addEventListener('resize', onResize);
 
-	animloop();
+	sceneLoadedPromise.then(() => {
+		animloop();
+	});
 }
 
 

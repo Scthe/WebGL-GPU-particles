@@ -1,22 +1,25 @@
 /// <reference path='../typings/tsd.d.ts'/>
 /// <reference path='./config.ts'/>
 /// <reference path="./gpuParticles.ts"/>
+/// <reference path='./utils/shaderLoader.ts'/>
 
 module App {
 
 	export class App {
 
-		private loadedDefer: Q.Deferred<THREE.Scene>;
+		private shaderLoader: Utils.ShaderLoader;
 		private camera: THREE.PerspectiveCamera;
 		private clock: THREE.Clock;
 		private tick: number;
 		private particleSystem: GpuParticles.GpuParticles;
 
 		constructor(){
-			this.loadedDefer = Q.defer<THREE.Scene>();
+			this.shaderLoader = new Utils.ShaderLoader();
 		}
 
 		init(scene: THREE.Scene): Q.Promise<THREE.Scene> {
+			// let loadedDefer = Q.defer<THREE.Scene>();
+
 			this.clock = new THREE.Clock(true)
 			this.tick = 0;
 
@@ -27,7 +30,7 @@ module App {
 			var auxObjects = this.createAuxObjects();
 
 			this.particleSystem = new GpuParticles.GpuParticles();
-			this.particleSystem.init();
+			var particleSystemLoaded = this.particleSystem.init(this.shaderLoader);
 
 			var sceneAddObjects = (objectsArray: Array<THREE.Object3D>) => {
 				_.each(objectsArray, (o) => { scene.add(o); })
@@ -41,7 +44,8 @@ module App {
 				scene.fog = new THREE.FogExp2(config.fog.color, config.fog.density);
 			}
 
-			return this.loadedDefer.promise;
+			// return this.loadedDefer.promise;
+			return particleSystemLoaded.then(() => scene);
 		}
 
 		private createCamera(cameraOpt, name: string): THREE.PerspectiveCamera {

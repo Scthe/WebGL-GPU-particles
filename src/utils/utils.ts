@@ -1,5 +1,5 @@
-/// <reference path='config.ts'/>
-/// <reference path='../typings/tsd.d.ts'/>
+/// <reference path='../config.ts'/>
+/// <reference path='../../typings/tsd.d.ts'/>
 
 module Utils {
 

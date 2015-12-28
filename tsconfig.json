@@ -8,9 +8,12 @@
         "noEmitOnError": true
     },
     "files": [
+        "src/utils/http.ts",
+        "src/utils/shaderLoader.ts",
+        "src/utils/utils.ts",
         "src/app.ts",
-        "src/main.ts",
         "src/config.ts",
-        "src/gpuParticles.ts"
+        "src/gpuParticles.ts",
+        "src/main.ts"
     ]
 }

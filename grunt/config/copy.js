@@ -20,6 +20,14 @@ module.exports = {
       '*.html',
     ]
   },
+  shaders: {
+    cwd: 'src',
+    dest: '.tmp/',
+    expand: true,
+    src: [
+      'shaders/*.shader',
+    ]
+  },
   vendor: {
       expand: true,
       cwd: 'node_modules',

@@ -63,6 +63,7 @@ const config = {
 			timeScale: 1,
 			noiseTexture: 'vendor/textures/perlin-512.png',
 			spriteTexture: 'vendor/textures/particle2.png',
+			simulationShader: 'shaders/particleSim.shader',
 			maxVel: 2,
 			maxSource: 250
 		},

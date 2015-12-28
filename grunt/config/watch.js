@@ -11,4 +11,8 @@ module.exports = {
     files: ['*.html'],
     tasks: ['copy:watchHtml']
   },
+  shaders: {
+    files: ['src/**/*.shader'],
+    tasks: ['copy:shaders']
+  },
 };
