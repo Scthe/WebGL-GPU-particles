@@ -1,0 +1,16 @@
+{
+    "compilerOptions": {
+        "sourceMap": true,
+        "declaration": false,
+        "out": "build/app.js",
+        "target": "es5",
+        "module": "amd",
+        "noEmitOnError": true
+    },
+    "files": [
+        "src/app.ts",
+        "src/main.ts",
+        "src/config.ts",
+        "src/gpuParticles.ts"
+    ]
+}
