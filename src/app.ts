@@ -1,6 +1,6 @@
 /// <reference path='../typings/tsd.d.ts'/>
 /// <reference path='./config.ts'/>
-/// <reference path="./gpuParticles.ts"/>
+/// <reference path="./particles/gpuParticles.ts"/>
 /// <reference path='./utils/shaderLoader.ts'/>
 
 module App {

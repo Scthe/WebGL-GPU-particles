@@ -1,6 +1,6 @@
-/// <reference path='../typings/tsd.d.ts'/>
-/// <reference path='./config.ts'/>
-/// <reference path='./utils/utils.ts'/>
+/// <reference path='../../typings/tsd.d.ts'/>
+/// <reference path='../config.ts'/>
+/// <reference path='../utils/utils.ts'/>
 
 module GpuParticles {
 
@@ -20,6 +20,8 @@ module GpuParticles {
 	}
 
 	export class GpuParticles extends THREE.Object3D {
+
+		// TODO for gui add editableProperties: ['','',..]
 
 		// general
 		private cfg: any;
@@ -41,8 +43,8 @@ module GpuParticles {
 		private particlePointsObject: THREE.Points;
 		private particleShaderMat: THREE.ShaderMaterial;
 		private particleShaderGeom: THREE.BufferGeometry;
-		private posStartAttr: BufferAttr;
-		private velColAttr:   BufferAttr;
+		private posStartAndTimeAttr: BufferAttr;
+		private miscDataAttr:   BufferAttr;
 
 
 		constructor(){
@@ -66,8 +68,8 @@ module GpuParticles {
 		  this.particleShaderGeom.addAttribute('position', new THREE.BufferAttribute(this.particleVertices, 3));
 		  this.particleShaderGeom.addAttribute('particlePositionAndTime', new THREE.BufferAttribute(this.particlePositionAndTime, 4).setDynamic(true));
 		  this.particleShaderGeom.addAttribute('particleMiscData', new THREE.BufferAttribute(this.particleMiscData, 4).setDynamic(true));
-		  this.posStartAttr = this.particleShaderGeom.getAttribute('particlePositionAndTime')
-		  this.velColAttr   = this.particleShaderGeom.getAttribute('particleMiscData');
+		  this.posStartAndTimeAttr = this.particleShaderGeom.getAttribute('particlePositionAndTime')
+		  this.miscDataAttr        = this.particleShaderGeom.getAttribute('particleMiscData');
 
 			let materialPromise = this.createMaterial(shaderLoader),
 					particlesCreated = materialPromise.then((material) => {
@@ -156,12 +158,12 @@ module GpuParticles {
 
 			let i = this.particleIterator; // next free slot
 
-			// positions
-			let posStartAttrValues = [
+			// positions & startTime
+			let posStartAndTimeAttrValues = [
 						opt.position.x + ((rand()) * opt.positionRandomness),
 						opt.position.y + ((rand()) * opt.positionRandomness),
 						opt.position.z + ((rand()) * opt.positionRandomness),
-						this.time + (rand() * 2e-2) //startTime
+						this.time + (rand() * 2e-2)
 			];
 			// velocity, forces
 			let velStartValues = [
@@ -188,16 +190,16 @@ module GpuParticles {
 				opt.lifetime
 			];
 
-			if (this.posStartAttr instanceof THREE.BufferAttribute) {
-				var posStartArr = (<THREE.BufferAttribute> this.posStartAttr).array,
-						velColArr   = (<THREE.BufferAttribute> this.velColAttr).array;
-			} else if (this.posStartAttr instanceof THREE.InterleavedBufferAttribute){
-				var posStartArr = (<THREE.InterleavedBufferAttribute> this.posStartAttr).data.array,
-						velColArr   = (<THREE.InterleavedBufferAttribute> this.velColAttr).data.array;
+			if (this.posStartAndTimeAttr instanceof THREE.BufferAttribute) {
+				var posStartArr = (<THREE.BufferAttribute> this.posStartAndTimeAttr).array,
+						velColArr   = (<THREE.BufferAttribute> this.miscDataAttr).array;
+			} else if (this.posStartAndTimeAttr instanceof THREE.InterleavedBufferAttribute){
+				var posStartArr = (<THREE.InterleavedBufferAttribute> this.posStartAndTimeAttr).data.array,
+						velColArr   = (<THREE.InterleavedBufferAttribute> this.miscDataAttr).data.array;
 			} else {
 				throw "Could not spawn particle - unknown buffer type";
 			}
-			Utils.fillParticleDataOnIdx(posStartArr, i*4, posStartAttrValues);
+			Utils.fillParticleDataOnIdx(posStartArr, i*4, posStartAndTimeAttrValues);
 			Utils.fillParticleDataOnIdx(velColArr,   i*4, vcsl);
 
 
@@ -231,12 +233,12 @@ module GpuParticles {
 				}
 			};
 			var posStartData: BufferData, velColData: BufferData;
-			if (this.posStartAttr instanceof THREE.BufferAttribute) {
-				posStartData = <THREE.BufferAttribute> this.posStartAttr;
-				velColData   = <THREE.BufferAttribute> this.velColAttr;
-			} else if (this.posStartAttr instanceof THREE.InterleavedBufferAttribute){
-				posStartData = (<THREE.InterleavedBufferAttribute> this.posStartAttr).data;
-				velColData   = (<THREE.InterleavedBufferAttribute> this.velColAttr).data;
+			if (this.posStartAndTimeAttr instanceof THREE.BufferAttribute) {
+				posStartData = <THREE.BufferAttribute> this.posStartAndTimeAttr;
+				velColData   = <THREE.BufferAttribute> this.miscDataAttr;
+			} else if (this.posStartAndTimeAttr instanceof THREE.InterleavedBufferAttribute){
+				posStartData = (<THREE.InterleavedBufferAttribute> this.posStartAndTimeAttr).data;
+				velColData   = (<THREE.InterleavedBufferAttribute> this.miscDataAttr).data;
 			} else {
 				throw "Could not spawn particle - unknown buffer type";
 			}

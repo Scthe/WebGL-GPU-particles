@@ -11,9 +11,11 @@
         "src/utils/http.ts",
         "src/utils/shaderLoader.ts",
         "src/utils/utils.ts",
+        "src/particles/gpuParticles.ts",
+        "src/particles/emitterOptions.ts",
+        "src/particles/valueTypes.ts",
         "src/app.ts",
         "src/config.ts",
-        "src/gpuParticles.ts",
         "src/main.ts"
     ]
 }
