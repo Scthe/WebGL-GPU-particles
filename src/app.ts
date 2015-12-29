@@ -96,26 +96,12 @@ module App {
 		}
 
 		update(){
-			// this.controls.update();
-			this.updateParticles(config.particles);
-		}
-
-		private updateParticles(opt): void{
-			var delta = this.clock.getDelta() * opt.system.timeScale;
+			var delta = this.clock.getDelta();
 			this.tick = Math.max(this.tick + delta, 0);
 
-			var systemPosition = opt.position(this.tick, opt.system);
+			// this.controls.update();
 
-			if (delta > 0) {
-				var spawnOpt = _.extend({}, opt.spawnOptions);
-				spawnOpt.position = systemPosition;
-
-				for (var x = 0; x < opt.system.spawnRate * delta; x++) {
-					this.particleSystem.spawnParticle(spawnOpt);
-				}
-			}
-
-			this.particleSystem.update(this.tick);
+			this.particleSystem.update(delta, this.tick);
 		}
 
 		getCamera(){

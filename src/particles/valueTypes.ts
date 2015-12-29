@@ -17,8 +17,8 @@ module GpuParticles {
 			this._endValue = endValue;
 		}
 
-		min(): T { return this._startValue; }
-		max(): T { return this._endValue !== undefined? this._endValue : this._startValue; }
+		startValue(): T { return this._startValue; }
+		endValue(): T { return this._endValue !== undefined? this._endValue : this._startValue; }
 	}
 
 	export class ValueWithDistribution<T>{
@@ -60,9 +60,11 @@ module GpuParticles {
 
 	function addRandomSER<T>(randFunction: Function, baseVal: StartEndRange<T>, distribute: number): StartEndRange<T> {
 		let a: T = addRandom<T>(randFunction, baseVal._startValue, distribute),
-				b: T = addRandom<T>(randFunction, baseVal._endValue,   distribute);
-		if (baseVal.min() === baseVal.max()){
+				b: T;
+		if (baseVal.startValue() === baseVal.endValue()){
 			b = a;
+		} else {
+			b = addRandom<T>(randFunction, baseVal.endValue(),   distribute)
 		}
 		return new StartEndRange(a, b);
 	}

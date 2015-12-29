@@ -1,89 +1,71 @@
 /// <reference path='../../typings/tsd.d.ts'/>
 /// <reference path='../config.ts'/>
-/// <reference path='../utils/utils.ts'/>
+/// <reference path='./emitter.ts'/>
 
 module GpuParticles {
 
 	type BufferAttr = THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
 
-	interface SpawnParticleOptions {
-		position?: THREE.Vector3,
-		velocity?: THREE.Vector3,
-		positionRandomness?: number,
-		velocityRandomness?: number,
-		color?: number,
-		colorRandomness?: number,
-		turbulence?: number,
-		lifetime?: number,
-		size?: number,
-		sizeRandomness?: number
-	}
+	let defaultParticleSpawnOptions: EmitterOptions = {
+		name: 'particle emitter',
+		visible: true,
+		count: 1000,
+		spawnRate: 100,
+		emitterRotation: new THREE.Vector3(),
+		emitterPosition: new THREE.Vector3(), // TODO replace with function
+
+		// per particle values
+		lifetime:                 new ValueWithDistribution(2.0, 0.5),
+		initialPosition:          new ValueWithDistribution(new THREE.Vector3(), 0.3),
+		// initialRotation: new ValueWithDistribution(new THREE.Vector3(), 0.3),
+		// rotationalVelocity: ValueWithDistribution<THREE.Vector3>,
+		initialVelocity:          new ValueWithDistribution(new THREE.Vector3(), 0.5),
+		turbulenceOverLife:       new ValueWithDistribution(new StartEndRange(127, 127), 0.0),
+		sizeOverLife:    new ValueWithDistribution(new StartEndRange(5.0), 1.0),
+		// sizeBySpeed:     new ValueWithDistribution<THREE.Vector2>,
+		// constantAcceleration: new ValueWithDistribution<THREE.Vector3>,
+		colorOverLife:   new ValueWithDistribution(new StartEndRange(new THREE.Vector3(230, 90, 70)), 0.2),
+		// opacityOverLife: new ValueWithDistribution<StartEndRange<number>>,
+	};
+
 
 	export class GpuParticles extends THREE.Object3D {
 
 		// TODO for gui add editableProperties: ['','',..]
 
-		// general
 		private cfg: any;
-		/** time in simulation */
-		private time: number;
-		private particleCount: number;
-		private particleIterator: number;
-		/** if needs updating */
-		private particleUpdate: boolean;
-		/** used when marking particles as dirty - to minimize updated particles count */
-		private offset: number;
-		/** used when marking particles as dirty - to minimize updated particles count */
-		private count: number;
-		// cpu
-		private particleVertices:				 Float32Array;  // x,y,z
-		private particlePositionAndTime: Float32Array;  // x,y,z,time
-		private particleMiscData:        Float32Array;  // velocity, color, size, lifespan
-		// object & geom
-		private particlePointsObject: THREE.Points;
+		private emiters: Emitter[];
 		private particleShaderMat: THREE.ShaderMaterial;
-		private particleShaderGeom: THREE.BufferGeometry;
 		private posStartAndTimeAttr: BufferAttr;
 		private miscDataAttr:   BufferAttr;
 
 
 		constructor(){
 			super();
-			this.time = 0;
-			this.particleCount = 1000;
-			this.particleIterator = 0;
-			this.particleUpdate = false;
-			this.offset = 0;
-			this.count = 0;
 			this.cfg = config.particles;
+			this.emiters = [new Emitter()];
 		}
 
 		init(shaderLoader: Utils.ShaderLoader) {
-			this.particleCount = this.cfg.system.count;
-			this.particleUpdate = false;
-
-			this.initBuffers();
-
-			this.particleShaderGeom = new THREE.BufferGeometry();
-		  this.particleShaderGeom.addAttribute('position', new THREE.BufferAttribute(this.particleVertices, 3));
-		  this.particleShaderGeom.addAttribute('particlePositionAndTime', new THREE.BufferAttribute(this.particlePositionAndTime, 4).setDynamic(true));
-		  this.particleShaderGeom.addAttribute('particleMiscData', new THREE.BufferAttribute(this.particleMiscData, 4).setDynamic(true));
-		  this.posStartAndTimeAttr = this.particleShaderGeom.getAttribute('particlePositionAndTime')
-		  this.miscDataAttr        = this.particleShaderGeom.getAttribute('particleMiscData');
-
-			let materialPromise = this.createMaterial(shaderLoader),
+			let materialPromise = this.createBaseMaterial(shaderLoader),
 					particlesCreated = materialPromise.then((material) => {
 						this.particleShaderMat = material;
-						this.particlePointsObject = new THREE.Points(this.particleShaderGeom, this.particleShaderMat);
-						this.particlePointsObject.frustumCulled = false;
-						this.add(this.particlePointsObject);
+
+						_.each(this.emiters, (emitter) => {
+							this.add(emitter); // this will set parent property
+							emitter.init(defaultParticleSpawnOptions, material);
+						})
 					});
 
 			return particlesCreated;
 		}
 
-		private createMaterial(shaderLoader: Utils.ShaderLoader): Q.Promise<THREE.ShaderMaterial> {
-			var particleNoiseTex  = THREE.ImageUtils.loadTexture(this.cfg.system.noiseTexture),
+		defaultSpawnOptions(): EmitterOptions{
+			return defaultParticleSpawnOptions;
+		}
+
+		private createBaseMaterial(shaderLoader: Utils.ShaderLoader): Q.Promise<THREE.ShaderMaterial> {
+			let particleNoiseTex  = THREE.ImageUtils.loadTexture(this.cfg.system.noiseTexture),
 			    particleSpriteTex = THREE.ImageUtils.loadTexture(this.cfg.system.spriteTexture);
 			particleNoiseTex.wrapS  = particleNoiseTex.wrapT  = THREE.RepeatWrapping;
 			particleSpriteTex.wrapS = particleSpriteTex.wrapT = THREE.RepeatWrapping;
@@ -119,7 +101,7 @@ module GpuParticles {
 					materialOptions.vertexShader = shaderTexts.vertex;
 					materialOptions.fragmentShader = shaderTexts.fragment;
 
-					var m = new THREE.ShaderMaterial(materialOptions);
+					let m = new THREE.ShaderMaterial(materialOptions);
 					m.defaultAttributeValues.particlePositionAndTime = [0, 0, 0, 0];
 					m.defaultAttributeValues.particleMiscData = [0, 0, 0, 0];
 
@@ -129,134 +111,31 @@ module GpuParticles {
 			return materialCreatedPromise;
 		}
 
-		private initBuffers() {
-			// new hyper compressed attributes
-			var particleVertices        = new Float32Array(this.particleCount * 3), // x,y,z
-					particlePositionAndTime = new Float32Array(this.particleCount * 4), // x,y,z,time
-					particleMiscData        = new Float32Array(this.particleCount * 4); // velocity, color, size, lifespan
+		update(delta: number, time: number) {
+			delta = delta * this.cfg.system.timeScale;
 
-			for (let i = 0; i < this.particleCount; i++) {
-				let vcsl = [Utils.decodeFloat(128, 128, 0, 0), Utils.decodeFloat(0, 254, 0, 254), 1,0];
-				Utils.fillParticleDataOnIdx(particlePositionAndTime, i*4, [100,0,0,0]);
-				Utils.fillParticleDataOnIdx(particleVertices,        i*3, [0,0,0]);
-				Utils.fillParticleDataOnIdx(particleMiscData,        i*4, vcsl);
-			}
-
-			this.particleVertices = particleVertices;
-			this.particlePositionAndTime = particlePositionAndTime;
-			this.particleMiscData = particleMiscData;
-		}
-
-		spawnParticle(options?: SpawnParticleOptions) {
-			let maxVel = this.cfg.system.maxVel,
-					maxSource = this.cfg.system.maxSource,
-					rand = () => {return Math.random() - .5; },
-					opt = _.clone(config.particles.spawnOptions);
-			if (options !== undefined) {
-				opt = _.extend(opt, options);
-			}
-
-			let i = this.particleIterator; // next free slot
-
-			// positions & startTime
-			let posStartAndTimeAttrValues = [
-						opt.position.x + ((rand()) * opt.positionRandomness),
-						opt.position.y + ((rand()) * opt.positionRandomness),
-						opt.position.z + ((rand()) * opt.positionRandomness),
-						this.time + (rand() * 2e-2)
-			];
-			// velocity, forces
-			let velStartValues = [
-				opt.velocity.x + (rand()) * opt.velocityRandomness,
-				opt.velocity.y + (rand()) * opt.velocityRandomness,
-				opt.velocity.z + (rand()) * opt.velocityRandomness
-			];
-			velStartValues = _.map(velStartValues, (val) => { // clamp to 0..1
-				let mod = (val + maxVel) / (maxVel + maxVel);
-				return Math.floor(maxSource * mod);
-			});
-	    let turbulence = Math.floor(opt.turbulence * 254);
-			// color
-			let rgb = Utils.hexToRgb(opt.color);
-			for (let c = 0; c < rgb.length; c++) {
-				let colV = Math.floor(rgb[c] + ((rand()) * opt.colorRandomness) * 254);
-				rgb[c] = Math.max(0, Math.min(colV, 254));
-			}
-
-			let vcsl = [
-				Utils.decodeFloat(velStartValues[0], velStartValues[1], velStartValues[2], turbulence),
-				Utils.decodeFloat(rgb[0], rgb[1], rgb[2], 254),
-				opt.size + (rand()) * opt.sizeRandomness,
-				opt.lifetime
-			];
-
-			if (this.posStartAndTimeAttr instanceof THREE.BufferAttribute) {
-				var posStartArr = (<THREE.BufferAttribute> this.posStartAndTimeAttr).array,
-						velColArr   = (<THREE.BufferAttribute> this.miscDataAttr).array;
-			} else if (this.posStartAndTimeAttr instanceof THREE.InterleavedBufferAttribute){
-				var posStartArr = (<THREE.InterleavedBufferAttribute> this.posStartAndTimeAttr).data.array,
-						velColArr   = (<THREE.InterleavedBufferAttribute> this.miscDataAttr).data.array;
-			} else {
-				throw "Could not spawn particle - unknown buffer type";
-			}
-			Utils.fillParticleDataOnIdx(posStartArr, i*4, posStartAndTimeAttrValues);
-			Utils.fillParticleDataOnIdx(velColArr,   i*4, vcsl);
-
-
-			if (this.offset === 0) {
-				this.offset = this.particleCount;
-			}
-			++this.count;
-			++this.particleIterator;
-			this.particleIterator = this.particleIterator >= this.particleCount ? 0 : this.particleIterator;
-
-			this.particleUpdate = true;
-		}
-
-		update(time) {
-			this.time = time;
 			this.particleShaderMat.uniforms['uTime'].value = time;
 
-			this.geometryUpdate();
+			if (delta > 0) {
+				_.each(this.emiters, emitter => { this.updateEmiter(delta, time, emitter); });
+			}
 		}
 
-		private geometryUpdate() {
-			if (!this.particleUpdate) return;
-      this.particleUpdate = false;
+		private updateEmiter (delta: number, time: number, emitter: Emitter): void {
+			if (!emitter.visible) return;
 
-			// set the range of values that is dirty
-			type BufferData = {
-				needsUpdate: boolean,
-				updateRange: {
-					count: number,
-					offset: number
-				}
+			// TODO move inside emitter
+			let newPosition = this.cfg.position(time, this.cfg.system);
+			let newOpt = {
+				position: newPosition
 			};
-			var posStartData: BufferData, velColData: BufferData;
-			if (this.posStartAndTimeAttr instanceof THREE.BufferAttribute) {
-				posStartData = <THREE.BufferAttribute> this.posStartAndTimeAttr;
-				velColData   = <THREE.BufferAttribute> this.miscDataAttr;
-			} else if (this.posStartAndTimeAttr instanceof THREE.InterleavedBufferAttribute){
-				posStartData = (<THREE.InterleavedBufferAttribute> this.posStartAndTimeAttr).data;
-				velColData   = (<THREE.InterleavedBufferAttribute> this.miscDataAttr).data;
-			} else {
-				throw "Could not spawn particle - unknown buffer type";
+
+			for (var x = 0; x < emitter.opt.spawnRate * delta; x++) {
+				emitter.spawnParticle(newOpt);
 			}
-			// if we can get away with a partial buffer update, do so
-			if (this.offset + this.count < this.particleCount) {
-        posStartData.updateRange.offset = velColData.updateRange.offset = this.offset * 4;
-        posStartData.updateRange.count  = velColData.updateRange.count  = this.count * 4;
-      } else {
-        posStartData.updateRange.offset = 0;
-        posStartData.updateRange.count  = velColData.updateRange.count = this.particleCount * 4;
-      }
 
-      posStartData.needsUpdate = true;
-      velColData.needsUpdate = true;
-
-      this.offset = 0;
-      this.count = 0;
-	  }
+			emitter.update(time);
+		};
 
 	}
 

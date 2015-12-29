@@ -7,23 +7,26 @@ module GpuParticles {
 
 	export interface EmitterOptions {
 		name: string,
-		enabled: boolean,
-		emitterRotation: ValueWithDistribution<THREE.Vector3>,
-		emitterPosition: ValueWithDistribution<THREE.Vector3>,
+		visible: boolean,
+		count: number,
+		spawnRate: number,
+		emitterRotation: THREE.Vector3,
+		emitterPosition: Function | THREE.Vector3,
 
 		// per particle values
+		// TODO allow not only ValueWithDistribution but raw values too
 		// TODO size by speed works per axis, giving pseudo motion blur
-		lifetime:        ValueWithDistribution<number>,
-		initialPosition: ValueWithDistribution<THREE.Vector3>,
-		initialRotation: ValueWithDistribution<THREE.Vector3>,
-		rotationalVelocity: ValueWithDistribution<THREE.Vector3>,
-		initialVelocity: ValueWithDistribution<THREE.Vector3>,
-		turbulenceOverLife: ValueWithDistribution<StartEndRange<number>>, // turbulence
-		sizeOverLife:    ValueWithDistribution<StartEndRange<number>>,
-		sizeBySpeed:     ValueWithDistribution<THREE.Vector2>,
-		constantAcceleration: ValueWithDistribution<THREE.Vector3>,
-		colorOverLife:   ValueWithDistribution<StartEndRange<ParticleColor>>,
-		opacityOverLife: ValueWithDistribution<StartEndRange<number>>,
+		lifetime:             ValueWithDistribution<number>,
+		initialPosition:      ValueWithDistribution<THREE.Vector3>,
+		// initialRotation:      ValueWithDistribution<THREE.Vector3>,
+		// rotationalVelocity:   ValueWithDistribution<THREE.Vector3>,
+		initialVelocity:      ValueWithDistribution<THREE.Vector3>,
+		turbulenceOverLife:   ValueWithDistribution<StartEndRange<number>>,
+		sizeOverLife:         ValueWithDistribution<StartEndRange<number>>,
+		// sizeBySpeed:          ValueWithDistribution<THREE.Vector2>,
+		// constantAcceleration: ValueWithDistribution<THREE.Vector3>,
+		colorOverLife:        ValueWithDistribution<StartEndRange<ParticleColor>>,
+		// opacityOverLife:      ValueWithDistribution<StartEndRange<number>>,
 		/*
 		cameraOffset: {
 			// see https://docs.unrealengine.com/latest/INT/Engine/Rendering/ParticleSystems/Reference/Modules/Camera/index.html

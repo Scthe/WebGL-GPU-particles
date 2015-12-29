@@ -52,20 +52,16 @@ const config = {
 			colorRandomness: 0.2,
 			turbulence: 0.5,
 			lifetime: 2.0,
-			size: 5.0,
+			size: 20.0,
 			sizeRandomness: 1.0
 		},
 		system: {
-			spawnRate: 5000,
-			count: 100000,
-			horizontalSpeed: 1.5,
-			verticalSpeed: 1.33,
+			horizontalSpeed: 1.5, // used for elipsis
+			verticalSpeed:  1.33, // used for elipsis
 			timeScale: 1,
 			noiseTexture: 'vendor/textures/perlin-512.png',
 			spriteTexture: 'vendor/textures/particle2.png',
 			simulationShader: 'shaders/particleSim.shader',
-			maxVel: 2,
-			maxSource: 250
 		},
 		position: (tick: number, opt) => {
 			return new THREE.Vector3(
