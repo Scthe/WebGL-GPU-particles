@@ -12,7 +12,7 @@ module GpuParticles {
 		count: 1000,
 		spawnRate: 100,
 		emitterRotation: new THREE.Vector3(),
-		emitterPosition: new THREE.Vector3(), // TODO replace with function
+		emitterPosition: new THREE.Vector3(),
 
 		// per particle values
 		lifetime:                 new ValueWithDistribution(2.0, 0.5),
@@ -43,7 +43,7 @@ module GpuParticles {
 		constructor(){
 			super();
 			this.cfg = config.particles;
-			this.emiters = [new Emitter()];
+			this.emiters = [];
 		}
 
 		init(shaderLoader: Utils.ShaderLoader) {
@@ -51,9 +51,11 @@ module GpuParticles {
 					particlesCreated = materialPromise.then((material) => {
 						this.particleShaderMat = material;
 
-						_.each(this.emiters, (emitter) => {
+						_.each(this.cfg.emitters, (emitterCfg: EmitterOptions) => {
+							let emitter = new Emitter();
 							this.add(emitter); // this will set parent property
-							emitter.init(defaultParticleSpawnOptions, material);
+							emitter.init(emitterCfg, material);
+							this.emiters.push(emitter);
 						})
 					});
 
@@ -65,8 +67,8 @@ module GpuParticles {
 		}
 
 		private createBaseMaterial(shaderLoader: Utils.ShaderLoader): Q.Promise<THREE.ShaderMaterial> {
-			let particleNoiseTex  = THREE.ImageUtils.loadTexture(this.cfg.system.noiseTexture),
-			    particleSpriteTex = THREE.ImageUtils.loadTexture(this.cfg.system.spriteTexture);
+			let particleNoiseTex  = THREE.ImageUtils.loadTexture(this.cfg.noiseTexture),
+			    particleSpriteTex = THREE.ImageUtils.loadTexture(this.cfg.spriteTexture);
 			particleNoiseTex.wrapS  = particleNoiseTex.wrapT  = THREE.RepeatWrapping;
 			particleSpriteTex.wrapS = particleSpriteTex.wrapT = THREE.RepeatWrapping;
 
@@ -96,7 +98,7 @@ module GpuParticles {
 		    fragmentShader: ''
 		  };
 
-			let materialCreatedPromise = shaderLoader.load(this.cfg.system.simulationShader)
+			let materialCreatedPromise = shaderLoader.load(this.cfg.simulationShader)
 				.then(shaderTexts => {
 					materialOptions.vertexShader = shaderTexts.vertex;
 					materialOptions.fragmentShader = shaderTexts.fragment;
@@ -112,7 +114,7 @@ module GpuParticles {
 		}
 
 		update(delta: number, time: number) {
-			delta = delta * this.cfg.system.timeScale;
+			delta = delta * this.cfg.timeScale;
 
 			this.particleShaderMat.uniforms['uTime'].value = time;
 
@@ -124,14 +126,8 @@ module GpuParticles {
 		private updateEmiter (delta: number, time: number, emitter: Emitter): void {
 			if (!emitter.visible) return;
 
-			// TODO move inside emitter
-			let newPosition = this.cfg.position(time, this.cfg.system);
-			let newOpt = {
-				position: newPosition
-			};
-
 			for (var x = 0; x < emitter.opt.spawnRate * delta; x++) {
-				emitter.spawnParticle(newOpt);
+				emitter.spawnParticle(time);
 			}
 
 			emitter.update(time);

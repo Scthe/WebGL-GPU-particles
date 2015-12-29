@@ -10,8 +10,6 @@ module GpuParticles {
 
 		// general
 		opt: EmitterOptions;
-		/** time in simulation */
-		private time: number;
 		private particleIterator: number;
 		/** if needs updating */
 		private particleUpdate: boolean;
@@ -33,7 +31,6 @@ module GpuParticles {
 
 		constructor(){
 			super();
-			this.time = 0;
 			this.particleIterator = 0;
 			this.particleUpdate = false;
 			this.offset = 0;
@@ -87,72 +84,29 @@ module GpuParticles {
 		 * Create new particle based on this emitter's options. If no place for
 		 * new particle's data is found, some old one is removed
 		 */
-		spawnParticle(options: any) {
+		spawnParticle(particleSysTime: number) {
 			let maxVel = 2, // TODO put somewhere in config
 					maxSource = 250, // TODO put somewhere in config
 					rand = Math.random,
-					randDistrValProvider = valueProviderFromRand(rand);
+					valueReader = valueProvider(rand);
 
 			let i = this.particleIterator; // next free slot
 
-			///
-			/// TODO remove old system
-			///
-			rand = () => {return Math.random() - .5; };
-			let opt = _.clone(config.particles.spawnOptions);
-			if (options !== undefined) {
-				opt = _.extend(opt, options);
-			}
 			// positions & startTime
-			let posStartAndTimeAttrValues = [
-						opt.position.x + ((rand()) * opt.positionRandomness),
-						opt.position.y + ((rand()) * opt.positionRandomness),
-						opt.position.z + ((rand()) * opt.positionRandomness),
-						this.time + (rand() * 2e-2)
-			];
+			let emitterPosition: THREE.Vector3 = valueReader(this.opt.emitterPosition, particleSysTime, this.opt),
+					pos  = valueReader(this.opt.initialPosition).add(emitterPosition),
+					spawnTime = particleSysTime,
+					posStartAndTimeAttrValues = [pos.x, pos.y, pos.z, spawnTime];
 			// velocity, forces
-			let velStartValues = [
-				opt.velocity.x + (rand()) * opt.velocityRandomness,
-				opt.velocity.y + (rand()) * opt.velocityRandomness,
-				opt.velocity.z + (rand()) * opt.velocityRandomness
-			];
-			velStartValues = _.map(velStartValues, (val) => { // clamp to 0..1
-				let mod = (val + maxVel) / (maxVel + maxVel);
-				return Math.floor(maxSource * mod);
-			});
-	    let turbulence = Math.floor(opt.turbulence * 254);
-			// color
-			let rgb = Utils.hexToRgb(opt.color);
-			for (let c = 0; c < rgb.length; c++) {
-				let colV = Math.floor(rgb[c] + ((rand()) * opt.colorRandomness) * 254);
-				rgb[c] = Math.max(0, Math.min(colV, 254));
-			}
-
-			let vcsl = [
-				Utils.decodeFloat(velStartValues[0], velStartValues[1], velStartValues[2], turbulence),
-				Utils.decodeFloat(rgb[0], rgb[1], rgb[2], 254),
-				opt.size + (rand()) * opt.sizeRandomness,
-				opt.lifetime
-			];
-			///
-			/// END remove old system
-			///
-
-			/*
-			// positions & startTime
-			let pos  = randDistrValProvider(this.opt.initialPosition),
-					time = this.time + ((rand() - 0.5) * 2e-2),
-					posStartAndTimeAttrValues = [pos.x, pos.y, pos.z, time];
-			// velocity, forces
-			let turbulence = randDistrValProvider(this.opt.turbulenceOverLife),
-					vel        = randDistrValProvider(this.opt.initialVelocity),
-					normVelVal = (val) => { // clamp to 0..1
+			let turbulence = valueReader(this.opt.turbulenceOverLife).startValue(), // TODO fix here
+					vel        = valueReader(this.opt.initialVelocity),
+					normVelVal = (val) => { // ? clamp to 0..1 ?
 						let mod = (val + maxVel) / (maxVel + maxVel);
 						return Math.floor(maxSource * mod);
 					};
 			vel.set(normVelVal(vel.x), normVelVal(vel.y), normVelVal(vel.z));
 			// color
-			let col = randDistrValProvider(this.opt.colorOverLife),
+			let col = valueReader(this.opt.colorOverLife),
 					normColorVal = (colV) => {
 						return Math.max(0, Math.min(254, Math.floor(colV)));
 					};
@@ -162,11 +116,9 @@ module GpuParticles {
 			let vcsl = [
 				Utils.decodeFloat(vel.x, vel.y, vel.z, turbulence),
 				Utils.decodeFloat(col.x, col.y, col.z, 254),
-				5.0,2.0 // TODO use options
-				// opt.size + (rand()) * opt.sizeRandomness,
-				// opt.lifetime
+				valueReader(this.opt.sizeOverLife).startValue(), // TODO fix here
+				valueReader(this.opt.lifetime)
 			];
-			*/
 
 			if (this.posStartAndTimeAttr instanceof THREE.BufferAttribute) {
 				var posStartArr = (<THREE.BufferAttribute> this.posStartAndTimeAttr).array,
@@ -192,7 +144,6 @@ module GpuParticles {
 		}
 
 		update(time) {
-			this.time = time;
 			this.geometryUpdate();
 		}
 

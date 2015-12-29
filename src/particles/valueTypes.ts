@@ -86,17 +86,21 @@ module GpuParticles {
 		}
 	}
 
-	export function valueProviderFromRand(randFunction: Function): Function{
-			let rand2 = () => { // form [0..1] to [-1..1]
-				return randFunction() * 2 - 1;
-			}
-			return <T>(valueWithDistribution: ValueWithDistribution<T>) => {
-				return addRandom(rand2, valueWithDistribution.value, valueWithDistribution.distribution);
-			}
-	}
+	export function valueProvider(randFunction: Function): Function {
+		let rand2 = () => { // from [0..1] to [-1..1]
+			return randFunction() * 2 - 1;
+		}
 
-	export function provideValue<T>(value: T): T {
-		return value;
+		return (optValue: any, ...args: any[]) => {
+			if (_.isFunction(optValue)){
+				return optValue.apply(optValue, args);
+			} else if (optValue instanceof ValueWithDistribution){
+				return addRandom(rand2, optValue.value, optValue.distribution);
+			} else {
+				return optValue;
+			}
+		};
+
 	}
 
 }

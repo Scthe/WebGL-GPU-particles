@@ -1,4 +1,9 @@
 /// <reference path='../typings/tsd.d.ts'/>
+/// <reference path="./particles/emitterOptions.ts"/>
+/// <reference path="./particles/valueTypes.ts"/>
+
+// TODO type ValueWithDistribution<T> = GpuParticles.ValueWithDistribution<T>;
+// type StartEndRange<T> = GpuParticles.StartEndRange<T>;
 
 const config = {
 
@@ -43,33 +48,28 @@ const config = {
 	],
 
 	particles: {
-		spawnOptions: {
-			position: new THREE.Vector3(),
-			velocity: new THREE.Vector3(),
-			positionRandomness: 0.3,
-			velocityRandomness: 0.5,
-			color: 0xE65946,
-			colorRandomness: 0.2,
-			turbulence: 0.5,
-			lifetime: 2.0,
-			size: 20.0,
-			sizeRandomness: 1.0
-		},
-		system: {
-			horizontalSpeed: 1.5, // used for elipsis
-			verticalSpeed:  1.33, // used for elipsis
-			timeScale: 1,
-			noiseTexture: 'vendor/textures/perlin-512.png',
-			spriteTexture: 'vendor/textures/particle2.png',
-			simulationShader: 'shaders/particleSim.shader',
-		},
-		position: (tick: number, opt) => {
-			return new THREE.Vector3(
-				Math.sin(tick * opt.horizontalSpeed) * 20,
-				Math.sin(tick * opt.verticalSpeed) * 10,
-				Math.sin(tick * opt.horizontalSpeed + opt.verticalSpeed) * 5
-			);
-		}
+		timeScale: 1,
+		noiseTexture: 'vendor/textures/perlin-512.png',
+		spriteTexture: 'vendor/textures/particle2.png',
+		simulationShader: 'shaders/particleSim.shader',
+		emitters: [
+			{
+				name: 'fire projectile',
+				count: 1000,
+				spawnRate: 100,
+				sizeOverLife: new GpuParticles.ValueWithDistribution(new GpuParticles.StartEndRange(20.0), 1.0),
+				turbulenceOverLife: new GpuParticles.ValueWithDistribution(new GpuParticles.StartEndRange(200), 0.0),
+				horizontalSpeed: 1.5, // used for elipsis
+				verticalSpeed:  1.33, // used for elipsis
+				emitterPosition: (tick: number, opt: any): THREE.Vector3 => {
+					return new THREE.Vector3(
+						Math.sin(tick * opt.horizontalSpeed) * 20,
+						Math.sin(tick * opt.verticalSpeed) * 10,
+						Math.sin(tick * opt.horizontalSpeed + opt.verticalSpeed) * 5
+					);
+				}
+			}
+		],
 	},
 
 	fog: {
