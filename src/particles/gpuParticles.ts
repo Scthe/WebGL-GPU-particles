@@ -11,7 +11,7 @@ module GpuParticles {
 		visible: true,
 		count: 1000,
 		spawnRate: 100,
-		emitterRotation: new THREE.Vector3(),
+		// emitterRotation: new THREE.Vector3(),
 		emitterPosition: new THREE.Vector3(),
 
 		// per particle values
@@ -24,7 +24,7 @@ module GpuParticles {
 		sizeOverLife:    new ValueWithDistribution(new StartEndRange(5.0), 1.0),
 		// sizeBySpeed:     new ValueWithDistribution<THREE.Vector2>,
 		// constantAcceleration: new ValueWithDistribution<THREE.Vector3>,
-		colorOverLife:   new ValueWithDistribution(new StartEndRange(new THREE.Vector3(230, 90, 70)), 0.2),
+		colorOverLife:   new ValueWithDistribution(new StartEndRange(0xE65A46), 0.2),
 		// opacityOverLife: new ValueWithDistribution<StartEndRange<number>>,
 	};
 

@@ -2,8 +2,8 @@
 /// <reference path="./particles/emitterOptions.ts"/>
 /// <reference path="./particles/valueTypes.ts"/>
 
-// TODO type ValueWithDistribution<T> = GpuParticles.ValueWithDistribution<T>;
-// type StartEndRange<T> = GpuParticles.StartEndRange<T>;
+import ValueWithDistribution = GpuParticles.ValueWithDistribution;
+import StartEndRange = GpuParticles.StartEndRange;
 
 const config = {
 
@@ -57,8 +57,8 @@ const config = {
 				name: 'fire projectile',
 				count: 1000,
 				spawnRate: 100,
-				sizeOverLife: new GpuParticles.ValueWithDistribution(new GpuParticles.StartEndRange(20.0), 1.0),
-				turbulenceOverLife: new GpuParticles.ValueWithDistribution(new GpuParticles.StartEndRange(200), 0.0),
+				sizeOverLife: new ValueWithDistribution(new StartEndRange(20.0), 1.0),
+				turbulenceOverLife: new ValueWithDistribution(new StartEndRange(200), 0.0),
 				horizontalSpeed: 1.5, // used for elipsis
 				verticalSpeed:  1.33, // used for elipsis
 				emitterPosition: (tick: number, opt: any): THREE.Vector3 => {

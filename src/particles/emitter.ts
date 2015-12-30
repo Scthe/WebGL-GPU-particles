@@ -4,7 +4,14 @@
 
 module GpuParticles {
 
-	type BufferAttr = THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
+	interface BufferAttrData {
+		needsUpdate: boolean,
+		array: ArrayLike<number>,
+		updateRange: {
+			count: number,
+			offset: number
+		}
+	};
 
 	export class Emitter extends THREE.Object3D {
 
@@ -25,8 +32,8 @@ module GpuParticles {
 		private particlePointsObject: THREE.Points;
 		private particleShaderMat: THREE.ShaderMaterial;
 		private particleShaderGeom: THREE.BufferGeometry;
-		private posStartAndTimeAttr: BufferAttr;
-		private miscDataAttr:   BufferAttr;
+		private posStartAndTimeAttr: BufferAttrData;
+		private miscDataAttr:        BufferAttrData;
 
 
 		constructor(){
@@ -43,17 +50,22 @@ module GpuParticles {
 
 			this.initBuffers();
 
+			type BufferAttr = THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
 			this.particleShaderGeom = new THREE.BufferGeometry();
 		  this.particleShaderGeom.addAttribute('position', new THREE.BufferAttribute(this.particleVertices, 3));
 		  this.particleShaderGeom.addAttribute('particlePositionAndTime', new THREE.BufferAttribute(this.particlePositionAndTime, 4).setDynamic(true));
 		  this.particleShaderGeom.addAttribute('particleMiscData', new THREE.BufferAttribute(this.particleMiscData, 4).setDynamic(true));
-		  this.posStartAndTimeAttr = this.particleShaderGeom.getAttribute('particlePositionAndTime')
-		  this.miscDataAttr        = this.particleShaderGeom.getAttribute('particleMiscData');
+		  this.posStartAndTimeAttr = toBufferAttrData(this.particleShaderGeom.getAttribute('particlePositionAndTime'))
+		  this.miscDataAttr        = toBufferAttrData(this.particleShaderGeom.getAttribute('particleMiscData'));
 
 			this.particleShaderMat = material;
 			this.particlePointsObject = new THREE.Points(this.particleShaderGeom, this.particleShaderMat);
 			this.particlePointsObject.frustumCulled = false;
 			this.add(this.particlePointsObject);
+
+			function toBufferAttrData(bufferAttr: BufferAttr): BufferAttrData {
+				return bufferAttr instanceof THREE.BufferAttribute? bufferAttr : (<THREE.InterleavedBufferAttribute>bufferAttr).data;
+			}
 		}
 
 		setEmitterOptions(opt: EmitterOptions, replace?: boolean): void {
@@ -69,10 +81,10 @@ module GpuParticles {
 					particleMiscData        = new Float32Array(this.getParticleCount() * 4); // velocity, color, size, lifespan
 
 			for (let i = 0; i < this.getParticleCount(); i++) {
-				let vcsl = [Utils.decodeFloat(128, 128, 0, 0), Utils.decodeFloat(0, 254, 0, 254), 1,0];
-				Utils.fillParticleDataOnIdx(particlePositionAndTime, i*4, [100,0,0,0]);
-				Utils.fillParticleDataOnIdx(particleVertices,        i*3, [0,0,0]);
-				Utils.fillParticleDataOnIdx(particleMiscData,        i*4, vcsl);
+				let vcsl = [Utils.encodeUint8VectorAsFloat(128, 128, 0, 0), Utils.encodeUint8VectorAsFloat(0, 254, 0, 254), 1,0];
+				Utils.copyArrInto(particlePositionAndTime, i*4, [100,0,0,0]);
+				Utils.copyArrInto(particleVertices,        i*3, [0,0,0]);
+				Utils.copyArrInto(particleMiscData,        i*4, vcsl);
 			}
 
 			this.particleVertices = particleVertices;
@@ -88,49 +100,35 @@ module GpuParticles {
 			let maxVel = 2, // TODO put somewhere in config
 					maxSource = 250, // TODO put somewhere in config
 					rand = Math.random,
-					valueReader = valueProvider(rand);
+					valueReader = valueReaderProvider(rand);
 
 			let i = this.particleIterator; // next free slot
 
-			// positions & startTime
-			let emitterPosition: THREE.Vector3 = valueReader(this.opt.emitterPosition, particleSysTime, this.opt),
-					pos  = valueReader(this.opt.initialPosition).add(emitterPosition),
-					spawnTime = particleSysTime,
-					posStartAndTimeAttrValues = [pos.x, pos.y, pos.z, spawnTime];
-			// velocity, forces
-			let turbulence = valueReader(this.opt.turbulenceOverLife).startValue(), // TODO fix here
-					vel        = valueReader(this.opt.initialVelocity),
-					normVelVal = (val) => { // ? clamp to 0..1 ?
+			// positions & spawnTime
+			let emitterPosition: THREE.Vector3 = valueReader(this.opt.emitterPosition, {ifFunctionThenArgs: [particleSysTime, this.opt]} ),
+					pos            : THREE.Vector3 = valueReader(this.opt.initialPosition).add(emitterPosition),
+					posStartAndTimeAttrValues = [pos.x, pos.y, pos.z, particleSysTime];
+			// velocity, forces, color
+			let turbulence: number = valueReader(this.opt.turbulenceOverLife).startValue(), // TODO fix here
+					vel: THREE.Vector3 = valueReader(this.opt.initialVelocity),
+					col: THREE.Color   = valueReader(this.opt.colorOverLife, {isColor: true}).startValue(); // TODO fix here
+
+			// apply normalizations when needed
+			let normVelVal = (val) => { // ? clamp to 0..1 ?
 						let mod = (val + maxVel) / (maxVel + maxVel);
 						return Math.floor(maxSource * mod);
 					};
 			vel.set(normVelVal(vel.x), normVelVal(vel.y), normVelVal(vel.z));
-			// color
-			let col = valueReader(this.opt.colorOverLife),
-					normColorVal = (colV) => {
-						return Math.max(0, Math.min(254, Math.floor(colV)));
-					};
-			col = col.startValue(); // TODO fix here
-			col.set(normColorVal(col.x), normColorVal(col.y), normColorVal(col.z));
 
 			let vcsl = [
-				Utils.decodeFloat(vel.x, vel.y, vel.z, turbulence),
-				Utils.decodeFloat(col.x, col.y, col.z, 254),
+				Utils.encodeUint8VectorAsFloat(vel.x, vel.y, vel.z, turbulence),
+				Utils.encodeUint8VectorAsFloat(col.r, col.g, col.b, 254),
 				valueReader(this.opt.sizeOverLife).startValue(), // TODO fix here
 				valueReader(this.opt.lifetime)
 			];
 
-			if (this.posStartAndTimeAttr instanceof THREE.BufferAttribute) {
-				var posStartArr = (<THREE.BufferAttribute> this.posStartAndTimeAttr).array,
-						velColArr   = (<THREE.BufferAttribute> this.miscDataAttr).array;
-			} else if (this.posStartAndTimeAttr instanceof THREE.InterleavedBufferAttribute){
-				var posStartArr = (<THREE.InterleavedBufferAttribute> this.posStartAndTimeAttr).data.array,
-						velColArr   = (<THREE.InterleavedBufferAttribute> this.miscDataAttr).data.array;
-			} else {
-				throw "Could not spawn particle - unknown buffer type";
-			}
-			Utils.fillParticleDataOnIdx(posStartArr, i*4, posStartAndTimeAttrValues);
-			Utils.fillParticleDataOnIdx(velColArr,   i*4, vcsl);
+			Utils.copyArrInto(this.posStartAndTimeAttr.array, i*4, posStartAndTimeAttrValues);
+			Utils.copyArrInto(this.miscDataAttr.array,   i*4, vcsl);
 
 
 			if (this.offset === 0) {
@@ -152,34 +150,18 @@ module GpuParticles {
       this.particleUpdate = false;
 
 			// set the range of values that is dirty
-			type BufferData = {
-				needsUpdate: boolean,
-				updateRange: {
-					count: number,
-					offset: number
-				}
-			};
-			var posStartData: BufferData, velColData: BufferData;
-			if (this.posStartAndTimeAttr instanceof THREE.BufferAttribute) {
-				posStartData = <THREE.BufferAttribute> this.posStartAndTimeAttr;
-				velColData   = <THREE.BufferAttribute> this.miscDataAttr;
-			} else if (this.posStartAndTimeAttr instanceof THREE.InterleavedBufferAttribute){
-				posStartData = (<THREE.InterleavedBufferAttribute> this.posStartAndTimeAttr).data;
-				velColData   = (<THREE.InterleavedBufferAttribute> this.miscDataAttr).data;
-			} else {
-				throw "Could not spawn particle - unknown buffer type";
-			}
 			// if we can get away with a partial buffer update, do so
+			let posDirtyRange  = this.posStartAndTimeAttr.updateRange,
+					miscDirtyRange = this.miscDataAttr.updateRange;
 			if (this.offset + this.count < this.getParticleCount()) {
-        posStartData.updateRange.offset = velColData.updateRange.offset = this.offset * 4;
-        posStartData.updateRange.count  = velColData.updateRange.count  = this.count * 4;
+        posDirtyRange.offset = miscDirtyRange.offset = this.offset * 4;
+        posDirtyRange.count  = miscDirtyRange.count  = this.count * 4;
       } else {
-        posStartData.updateRange.offset = 0;
-        posStartData.updateRange.count  = velColData.updateRange.count = this.getParticleCount() * 4;
+        posDirtyRange.offset = 0;
+        posDirtyRange.count  = miscDirtyRange.count = this.getParticleCount() * 4;
       }
-
-      posStartData.needsUpdate = true;
-      velColData.needsUpdate = true;
+      this.posStartAndTimeAttr.needsUpdate = true;
+      this.miscDataAttr.needsUpdate = true;
 
       this.offset = 0;
       this.count = 0;

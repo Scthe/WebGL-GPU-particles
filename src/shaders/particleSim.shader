@@ -21,8 +21,8 @@ varying float lifeLeft;
 
 void main() {
     // unpack values from attributes
-    vColor = encode_float(P_COLOR);
-    vec4 velTurb = encode_float(particleMiscData.x);
+    vColor = decodeUint8VectorFromFloat(P_COLOR);
+    vec4 velTurb = decodeUint8VectorFromFloat(particleMiscData.x);
     vec3 velocity = velTurb.xyz;
 
     // handle lifetime
