@@ -48,7 +48,6 @@ const config = {
 	],
 
 	particles: {
-		timeScale: 1,
 		noiseTexture: 'vendor/textures/perlin-512.png',
 		spriteTexture: 'vendor/textures/particle2.png',
 		simulationShader: 'shaders/particleSim.shader',
@@ -57,19 +56,23 @@ const config = {
 				name: 'fire projectile',
 				count: 1000,
 				spawnRate: 100,
-				sizeOverLife: new ValueWithDistribution(new StartEndRange(20.0), 1.0),
-				turbulenceOverLife: new ValueWithDistribution(new StartEndRange(200), 0.0),
+				sizeOverLife: new ValueWithDistribution(new StartEndRange(30.0, 5.0), 1.0),
+				initialVelocity: new ValueWithDistribution(new THREE.Vector3(), 30), // [0..255]
+				turbulenceOverLife: new ValueWithDistribution(new StartEndRange(0, 1.0), 0.0), // [0..1]
+				opacityOverLife: new StartEndRange(1.0, 0.3),
+
 				horizontalSpeed: 1.5, // used for elipsis
 				verticalSpeed:  1.33, // used for elipsis
-				emitterPosition: (tick: number, opt: any): THREE.Vector3 => {
+				emitterPosition: function (clockDeltaData: App.ClockDeltaData): THREE.Vector3 {
 					return new THREE.Vector3(
-						Math.sin(tick * opt.horizontalSpeed) * 20,
-						Math.sin(tick * opt.verticalSpeed) * 10,
-						Math.sin(tick * opt.horizontalSpeed + opt.verticalSpeed) * 5
+						Math.sin(clockDeltaData.currentTime * this.horizontalSpeed) * 20,
+						Math.sin(clockDeltaData.currentTime * this.verticalSpeed) * 10,
+						Math.sin(clockDeltaData.currentTime * this.horizontalSpeed + this.verticalSpeed) * 5
 					);
 				}
 			}
 		],
+
 	},
 
 	fog: {
@@ -87,6 +90,3 @@ function width(){
 function height(){
 	return document.documentElement.clientHeight;
 }
-
-
-// export config;

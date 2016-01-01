@@ -1,6 +1,7 @@
 /// <reference path='../../typings/tsd.d.ts'/>
 /// <reference path='../utils/utils.ts'/>
 /// <reference path="./valueTypes.ts"/>
+/// <reference path='../clock.ts'/>
 
 module GpuParticles {
 
@@ -96,39 +97,36 @@ module GpuParticles {
 		 * Create new particle based on this emitter's options. If no place for
 		 * new particle's data is found, some old one is removed
 		 */
-		spawnParticle(particleSysTime: number) {
-			let maxVel = 2, // TODO put somewhere in config
-					maxSource = 250, // TODO put somewhere in config
-					rand = Math.random,
+		spawnParticle(clockDeltaData: App.ClockDeltaData) {
+			let rand = Math.random,
 					valueReader = valueReaderProvider(rand);
 
 			let i = this.particleIterator; // next free slot
 
-			// positions & spawnTime
-			let emitterPosition: THREE.Vector3 = valueReader(this.opt.emitterPosition, {ifFunctionThenArgs: [particleSysTime, this.opt]} ),
-					pos            : THREE.Vector3 = valueReader(this.opt.initialPosition).add(emitterPosition),
-					posStartAndTimeAttrValues = [pos.x, pos.y, pos.z, particleSysTime];
-			// velocity, forces, color
-			let turbulence: number = valueReader(this.opt.turbulenceOverLife).startValue(), // TODO fix here
-					vel: THREE.Vector3 = valueReader(this.opt.initialVelocity),
-					col: THREE.Color   = valueReader(this.opt.colorOverLife, {isColor: true}).startValue(); // TODO fix here
+			// get all values during spawn time
+			let emitterPosition: THREE.Vector3   = valueReader(this.opt.emitterPosition, {ifFunctionThenArgs: [this.opt, clockDeltaData]} ),
+			    pos            : THREE.Vector3   = valueReader(this.opt.initialPosition).add(emitterPosition),
+			    vel            : THREE.Vector3   = valueReader(this.opt.initialVelocity, {min: -127, max: 127}), // TODO what if initVel.value=[400,0,0]
+			    col:   StartEndRange<THREE.Color>= valueReader(this.opt.colorOverLife, {isColor: true, isRange: true}),
+			    opacity: StartEndRange<number>   = valueReader(this.opt.opacityOverLife, {isRange: true, mul: 255, min: 0, max: 255}),
+			    scale  : StartEndRange<number>   = valueReader(this.opt.sizeOverLife, {isRange: true, isInt: true}),
+			    turbulence: StartEndRange<number>= valueReader(this.opt.turbulenceOverLife, {isRange: true, isInt: true, mul: 255, min: 0, max: 255}),
+			    colSt = col.startValue(), colEnd = col.endValue();
 
-			// apply normalizations when needed
-			let normVelVal = (val) => { // ? clamp to 0..1 ?
-						let mod = (val + maxVel) / (maxVel + maxVel);
-						return Math.floor(maxSource * mod);
-					};
-			vel.set(normVelVal(vel.x), normVelVal(vel.y), normVelVal(vel.z));
+      let buf1AttrValues = [
+            pos.x, pos.y, pos.z,
+            Utils.encodeUint8VectorAsFloat(vel.x + 127, vel.y + 127, vel.z + 127, 0.0)],
+          buf2AttrValues = [
+            Utils.encodeUint8VectorAsFloat(colSt.r,  colSt.g,  colSt.b,  opacity.startValue()),
+            Utils.encodeUint8VectorAsFloat(colEnd.r, colEnd.g, colEnd.b, opacity.endValue()),
+            Utils.encodeUint8VectorAsFloat(scale.startValue(),      scale.endValue(),
+                                           turbulence.startValue(), turbulence.endValue()),
+            clockDeltaData.currentTime
+            // valueReader(this.opt.lifetime)
+         ];
 
-			let vcsl = [
-				Utils.encodeUint8VectorAsFloat(vel.x, vel.y, vel.z, turbulence),
-				Utils.encodeUint8VectorAsFloat(col.r, col.g, col.b, 254),
-				valueReader(this.opt.sizeOverLife).startValue(), // TODO fix here
-				valueReader(this.opt.lifetime)
-			];
-
-			Utils.copyArrInto(this.posStartAndTimeAttr.array, i*4, posStartAndTimeAttrValues);
-			Utils.copyArrInto(this.miscDataAttr.array,   i*4, vcsl);
+      Utils.copyArrInto(this.posStartAndTimeAttr.array, i*4, buf1AttrValues);
+      Utils.copyArrInto(this.miscDataAttr.array,        i*4, buf2AttrValues);
 
 
 			if (this.offset === 0) {
@@ -141,7 +139,7 @@ module GpuParticles {
 			this.particleUpdate = true;
 		}
 
-		update(time) {
+		update(clockDeltaData: App.ClockDeltaData) {
 			this.geometryUpdate();
 		}
 

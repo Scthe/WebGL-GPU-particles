@@ -1,6 +1,7 @@
 /// <reference path='../../typings/tsd.d.ts'/>
 /// <reference path='../config.ts'/>
 /// <reference path='./emitter.ts'/>
+/// <reference path='../clock.ts'/>
 
 module GpuParticles {
 
@@ -19,19 +20,19 @@ module GpuParticles {
 		initialPosition:          new ValueWithDistribution(new THREE.Vector3(), 0.3),
 		// initialRotation: new ValueWithDistribution(new THREE.Vector3(), 0.3),
 		// rotationalVelocity: ValueWithDistribution<THREE.Vector3>,
-		initialVelocity:          new ValueWithDistribution(new THREE.Vector3(), 0.5),
+		initialVelocity:          new ValueWithDistribution(new THREE.Vector3(), 2),
 		turbulenceOverLife:       new ValueWithDistribution(new StartEndRange(127, 127), 0.0),
-		sizeOverLife:    new ValueWithDistribution(new StartEndRange(5.0), 1.0),
+		sizeOverLife:    new ValueWithDistribution(new StartEndRange(5.0, 20.0), 1.0),
 		// sizeBySpeed:     new ValueWithDistribution<THREE.Vector2>,
 		// constantAcceleration: new ValueWithDistribution<THREE.Vector3>,
-		colorOverLife:   new ValueWithDistribution(new StartEndRange(0xE65A46), 0.2),
-		// opacityOverLife: new ValueWithDistribution<StartEndRange<number>>,
+		colorOverLife:   new ValueWithDistribution(new StartEndRange(0xE65A46, 0x00FFFF), 0.1),
+		opacityOverLife: new StartEndRange(1.0, 0.0)
 	};
 
 
 	export class GpuParticles extends THREE.Object3D {
 
-		// TODO for gui add editableProperties: ['','',..]
+		// TODO for gui add editableProperties: ['','',..] or annotations like UPROPERTY(EditAnywhere, Category=Delay)
 
 		private cfg: any;
 		private emiters: Emitter[];
@@ -113,24 +114,22 @@ module GpuParticles {
 			return materialCreatedPromise;
 		}
 
-		update(delta: number, time: number) {
-			delta = delta * this.cfg.timeScale;
+		update(clockDeltaData: App.ClockDeltaData) {
+			this.particleShaderMat.uniforms['uTime'].value = clockDeltaData.currentTime;
 
-			this.particleShaderMat.uniforms['uTime'].value = time;
-
-			if (delta > 0) {
-				_.each(this.emiters, emitter => { this.updateEmiter(delta, time, emitter); });
+			if (clockDeltaData.delta > 0) {
+				_.each(this.emiters, emitter => { this.updateEmiter(clockDeltaData, emitter); });
 			}
 		}
 
-		private updateEmiter (delta: number, time: number, emitter: Emitter): void {
+		private updateEmiter (clockDeltaData: App.ClockDeltaData, emitter: Emitter): void {
 			if (!emitter.visible) return;
 
-			for (var x = 0; x < emitter.opt.spawnRate * delta; x++) {
-				emitter.spawnParticle(time);
+			for (var x = 0; x < emitter.opt.spawnRate * clockDeltaData.delta; x++) {
+				emitter.spawnParticle(clockDeltaData);
 			}
 
-			emitter.update(time);
+			emitter.update(clockDeltaData);
 		};
 
 	}

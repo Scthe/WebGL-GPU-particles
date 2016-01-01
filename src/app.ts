@@ -2,6 +2,7 @@
 /// <reference path='./config.ts'/>
 /// <reference path="./particles/gpuParticles.ts"/>
 /// <reference path='./utils/shaderLoader.ts'/>
+/// <reference path='./clock.ts'/>
 
 module App {
 
@@ -9,8 +10,6 @@ module App {
 
 		private shaderLoader: Utils.ShaderLoader;
 		private camera: THREE.PerspectiveCamera;
-		private clock: THREE.Clock;
-		private tick: number;
 		private particleSystem: GpuParticles.GpuParticles;
 
 		constructor(){
@@ -19,9 +18,6 @@ module App {
 
 		init(scene: THREE.Scene): Q.Promise<THREE.Scene> {
 			// let loadedDefer = Q.defer<THREE.Scene>();
-
-			this.clock = new THREE.Clock(true)
-			this.tick = 0;
 
 			// this.controls = new THREE.OrbitControls(this.camera);
 
@@ -96,12 +92,11 @@ module App {
 		}
 
 		update(){
-			var delta = this.clock.getDelta();
-			this.tick = Math.max(this.tick + delta, 0);
+			let clockDeltaData = createClockDeltaData();
 
 			// this.controls.update();
 
-			this.particleSystem.update(delta, this.tick);
+			this.particleSystem.update(clockDeltaData);
 		}
 
 		getCamera(){

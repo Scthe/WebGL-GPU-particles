@@ -26,7 +26,7 @@ module GpuParticles {
 		sizeOverLife:         number | StartEndRange<number> | ValueWithDistribution<StartEndRange<number>>;
 		// sizeBySpeed:          THREE.Vector2 | ValueWithDistribution<THREE.Vector2>;
 		colorOverLife:        ParticleColor | StartEndRange<ParticleColor> | ValueWithDistribution<StartEndRange<ParticleColor>>;
-		// opacityOverLife:      number | StartEndRange<number> | ValueWithDistribution<StartEndRange<number>>;
+		opacityOverLife:      number | StartEndRange<number> | ValueWithDistribution<StartEndRange<number>>;
 		/*
 		cameraOffset: {
 			// see https://docs.unrealengine.com/latest/INT/Engine/Rendering/ParticleSystems/Reference/Modules/Camera/index.html

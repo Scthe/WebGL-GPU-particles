@@ -16,6 +16,7 @@
         "src/particles/valueTypes.ts",
         "src/app.ts",
         "src/config.ts",
+        "src/clock.ts",
         "src/main.ts"
     ]
 }

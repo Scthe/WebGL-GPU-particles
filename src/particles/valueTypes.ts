@@ -33,7 +33,7 @@ module GpuParticles {
 
     constructor(value: T, distribution?: number){
       this.value = value;
-      this.distribution = distribution !== undefined ? distribution : -1.0;
+      this.distribution = distribution !== undefined ? distribution : 0.0;
     }
   }
 
@@ -45,11 +45,17 @@ module GpuParticles {
     ifFunctionThenArgs?: any[];
     /** even though we have separate ParticleColor type, we need to handle this case if we were provided number */
     isColor?: boolean;
-    // TODO add isRange?: boolean to auto convert to StartEndRange
+    isRange?: boolean;
+    clampMin?: number;
+    clampMax?: number;
+    mul?: number;
+    isInt?: boolean;
   }
   let defaultValueReaderOpt: ValueReaderOpt = {
     ifFunctionThenArgs: [],
     isColor: false,
+    isRange: false,
+    isInt: false
   }
 
   interface Vec extends THREE.Vector {
@@ -81,13 +87,18 @@ module GpuParticles {
 
       if (_.isFunction(rawValue)){
         // get value to further process
-        let tmp: T = rawValue.apply(window, opt2.ifFunctionThenArgs);
+        let valOfThis = opt2.ifFunctionThenArgs.shift() || null,
+            tmp: T = rawValue.apply(valOfThis, opt2.ifFunctionThenArgs);
         return <T><any>this.read(tmp, opt2);
       } else {
 
         // wrap in VWD with no distribution - this will effectively make it const and allow for unified processing
-        let vv = rawValue instanceof ValueWithDistribution ? rawValue : new ValueWithDistribution(rawValue, 0.0);
-        return <T><any>this.getValueFromDistribution(opt2, vv);
+        let vAsVWD = rawValue instanceof ValueWithDistribution ? rawValue : new ValueWithDistribution(rawValue, 0.0),
+            vv2 = this.getValueFromDistribution(opt2, vAsVWD);
+        if (opt2.isRange && !(vv2 instanceof StartEndRange)){
+          vv2 = new StartEndRange(vv2);
+        }
+        return <T><any>vv2;
       }
     }
 
@@ -118,7 +129,12 @@ module GpuParticles {
     // writting everything by hand:
 
     private getValueFromDistributionImpl(opt: ValueReaderOpt, distribution: number, value: number): number {
-      return value + this.randFunction() * distribution;
+      let v = value + this.randFunction() * (distribution / 2); // half distribution since rand operates on [-1, 1] range - twice the normal
+      if (opt.mul      !== undefined){ v *= opt.mul; }
+      if (opt.clampMin !== undefined){ v = Math.max(v, opt.clampMin); }
+      if (opt.clampMax !== undefined){ v = Math.min(v, opt.clampMax); }
+      if (opt.isInt                 ){ v = Math.floor(v); }
+      return v;
     }
 
     private getValueFromDistributionNum(opt: ValueReaderOpt, distr: ValueWithDistribution<number>): number{
@@ -127,7 +143,7 @@ module GpuParticles {
 
     private getValueFromDistributionV(opt: ValueReaderOpt, distr: ValueWithDistribution<Vec>){
       let arr =  distr.value.toArray();
-      _.map(arr, (v: number) => {
+      arr = _.map(arr, (v: number) => {
         return this.getValueFromDistributionImpl(opt, distr.distribution, v);
       });
       return (<Vec>distr.value.clone()).fromArray(arr);
@@ -150,13 +166,16 @@ module GpuParticles {
     }
 
     private getValueFromDistributionColor<ParticleColor>(opt: ValueReaderOpt, distr: ValueWithDistribution<ParticleColor>): ParticleColor {
-      opt.isColor = false;
+      let opt2 = _.extend({}, opt, {isColor: false});
+      opt2.mul = 255;
+      opt2.clampMin = 0;
+      opt2.clampMax = 255;
+      opt2.isInt = true;
       // we will handle color as vector
       let asColor: THREE.Color = (new THREE.Color()).set(<any>distr.value), // TS, WTF?
-          vec = (new THREE.Vector3()).fromArray(asColor.toArray()),
-          newValues = this.getValueFromDistribution(opt, new ValueWithDistribution(vec, distr.distribution)),
-          newValuesArr = _.map(newValues.toArray(), (v) => { return Math.floor(255 * Math.max(0.0, Math.min(1.0, v))); });
-      return <ParticleColor><any> asColor.fromArray(newValuesArr); // TS, WTF?
+          vec = (new THREE.Vector3()).fromArray(asColor.toArray()); let
+          newValues = this.getValueFromDistribution(opt2, new ValueWithDistribution(vec, distr.distribution));
+      return <ParticleColor><any> asColor.fromArray(newValues.toArray()); // TS, WTF?
     }
 
   }
