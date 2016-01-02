@@ -7,34 +7,34 @@ uniform float uTime;
 uniform float uScale;
 uniform sampler2D tNoise;
 
-attribute vec4 particlePositionAndTime; // x,y,z,velocity
-attribute vec4 particleMiscData;        // colorStart, colorEnd, size+turbulence, spawntime+lifespan
 
-#define P_POS        (particlePositionAndTime.xyz)
-#define P_VEL_C      (particlePositionAndTime.w)
-// #define P_VELOCITY   ((vel4.xyz - 0.5) * 2.0) // previously was u8, now is [0..1]
+// attribute vec3 position; // added by three.js: spawntime, lifespan, size+turbulence,
+attribute vec4 particlePositionAndVel; // x,y,z,velocity
+attribute vec2 particleColor;      // colorStart, colorEnd
+
+#define P_POS        (particlePositionAndVel.xyz)
+#define P_VEL_C      (particlePositionAndVel.w)
 #define P_VELOCITY   (vel4.xyz)
-// #define P_ (velTurb.w) // unused
-#define P_COLOR_ST   (particleMiscData.x)
-#define P_COLOR_END  (particleMiscData.y)
-#define P_SCALE_TURB (particleMiscData.z)
+// #define P_ (vel4.w) // unused
+#define P_COLOR_ST   (particleColor.x)
+#define P_COLOR_END  (particleColor.y)
+#define P_SPAWN_TIME (position.x)
+#define P_LIFESPAN   (position.y)
+#define P_SCALE_TURB (position.z)
 #define P_SCALE_ST   (scaleTurb.x)
 #define P_SCALE_END  (scaleTurb.y)
 #define P_TURB_ST    (scaleTurb.z)
 #define P_TURB_END   (scaleTurb.w)
-#define P_LIFESPAN   (2.0)
-#define P_SPAWN_TIME (particleMiscData.w)
-// #define P_LIFESPAN   (particleMiscData.a)
 
 varying vec4 vColor;
 varying float lifeLeft;
 
 void main() {
-    // unpack values from attributes
-    vec4 colorStart = decodeUint8VectorFromFloat(P_COLOR_ST);
-    vec4 colorEnd   = decodeUint8VectorFromFloat(P_COLOR_END);
-    vec4 vel4       = decodeUint8VectorFromFloat(P_VEL_C);
-    vec4 scaleTurb  = decodeUint8VectorFromFloat(P_SCALE_TURB);
+    // unpack values from attributes (all in [0..1] range)
+    vec4 colorStart = decodeUint8VectorFromFloat(P_COLOR_ST)   / 255.0;
+    vec4 colorEnd   = decodeUint8VectorFromFloat(P_COLOR_END)  / 255.0;
+    vec4 vel4       = decodeUint8VectorFromFloat(P_VEL_C)      / 255.0;
+    vec4 scaleTurb  = decodeUint8VectorFromFloat(P_SCALE_TURB) / 255.0;
 
     // handle lifetime
 #define P_LIFE_MOMENT (timeElapsedFromSpawn / P_LIFESPAN)
@@ -84,7 +84,7 @@ void main() {
     vec4 tex = texture2D(tSprite, gl_PointCoord);
 
     if (lifeLeft < .05){ // prevents weird things
-      tex.a = lifeLeft * .75;
+      tex.a *= lifeLeft * .75;
     }
 
     gl_FragColor = vColor * tex.a;

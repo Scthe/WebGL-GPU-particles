@@ -26,14 +26,15 @@ module GpuParticles {
 		/** used when marking particles as dirty - to minimize updated particles count */
 		private count: number;
 		// cpu
-		private particleVertices:				 Float32Array;  // x,y,z
-		private particlePositionAndTime: Float32Array;  // x,y,z,time
-		private particleMiscData:        Float32Array;  // velocity, color, size, lifespan
+		private particleVertices:        Float32Array;
+		private particlePositionAndVel:  Float32Array;
+		private particleColorData:       Float32Array;
 		// object & geom
-		private particlePointsObject: THREE.Points;
-		private particleShaderMat: THREE.ShaderMaterial;
-		private particleShaderGeom: THREE.BufferGeometry;
+		private particlePointsObject:THREE.Points;
+		private particleShaderMat:   THREE.ShaderMaterial;
+		private particleShaderGeom:  THREE.BufferGeometry;
 		private posStartAndTimeAttr: BufferAttrData;
+		private particleColorAttr:   BufferAttrData;
 		private miscDataAttr:        BufferAttrData;
 
 
@@ -53,11 +54,12 @@ module GpuParticles {
 
 			type BufferAttr = THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
 			this.particleShaderGeom = new THREE.BufferGeometry();
-		  this.particleShaderGeom.addAttribute('position', new THREE.BufferAttribute(this.particleVertices, 3));
-		  this.particleShaderGeom.addAttribute('particlePositionAndTime', new THREE.BufferAttribute(this.particlePositionAndTime, 4).setDynamic(true));
-		  this.particleShaderGeom.addAttribute('particleMiscData', new THREE.BufferAttribute(this.particleMiscData, 4).setDynamic(true));
-		  this.posStartAndTimeAttr = toBufferAttrData(this.particleShaderGeom.getAttribute('particlePositionAndTime'))
-		  this.miscDataAttr        = toBufferAttrData(this.particleShaderGeom.getAttribute('particleMiscData'));
+		  this.particleShaderGeom.addAttribute('position', new THREE.BufferAttribute(this.particleVertices, 3).setDynamic(true));
+		  this.particleShaderGeom.addAttribute('particlePositionAndVel', new THREE.BufferAttribute(this.particlePositionAndVel, 4).setDynamic(true));
+		  this.particleShaderGeom.addAttribute('particleColor', new THREE.BufferAttribute(this.particleColorData, 2).setDynamic(true));
+		  this.posStartAndTimeAttr = toBufferAttrData(this.particleShaderGeom.getAttribute('particlePositionAndVel'));
+		  this.particleColorAttr   = toBufferAttrData(this.particleShaderGeom.getAttribute('particleColor'));
+		  this.miscDataAttr        = toBufferAttrData(this.particleShaderGeom.getAttribute('position'));
 
 			this.particleShaderMat = material;
 			this.particlePointsObject = new THREE.Points(this.particleShaderGeom, this.particleShaderMat);
@@ -77,20 +79,17 @@ module GpuParticles {
 
 		private initBuffers() {
 			// new hyper compressed attributes
-			var particleVertices        = new Float32Array(this.getParticleCount() * 3), // x,y,z
-					particlePositionAndTime = new Float32Array(this.getParticleCount() * 4), // x,y,z,time
-					particleMiscData        = new Float32Array(this.getParticleCount() * 4); // velocity, color, size, lifespan
+      this.particleVertices        = new Float32Array(this.getParticleCount() * 3),
+      this.particlePositionAndVel  = new Float32Array(this.getParticleCount() * 4),
+      this.particleColorData       = new Float32Array(this.getParticleCount() * 2);
 
+			let colors = [Utils.encodeUint8VectorAsFloat(128, 128, 0,   0),
+                    Utils.encodeUint8VectorAsFloat(  0, 254, 0, 254)];
 			for (let i = 0; i < this.getParticleCount(); i++) {
-				let vcsl = [Utils.encodeUint8VectorAsFloat(128, 128, 0, 0), Utils.encodeUint8VectorAsFloat(0, 254, 0, 254), 1,0];
-				Utils.copyArrInto(particlePositionAndTime, i*4, [100,0,0,0]);
-				Utils.copyArrInto(particleVertices,        i*3, [0,0,0]);
-				Utils.copyArrInto(particleMiscData,        i*4, vcsl);
+				Utils.copyArrInto(this.particlePositionAndVel, i*4, [100,0,0,0]);
+				Utils.copyArrInto(this.particleVertices,       i*3, [0,0,0]);
+				Utils.copyArrInto(this.particleColorData,      i*2, colors);
 			}
-
-			this.particleVertices = particleVertices;
-			this.particlePositionAndTime = particlePositionAndTime;
-			this.particleMiscData = particleMiscData;
 		}
 
 		/**
@@ -107,26 +106,31 @@ module GpuParticles {
 			let emitterPosition: THREE.Vector3   = valueReader(this.opt.emitterPosition, {ifFunctionThenArgs: [this.opt, clockDeltaData]} ),
 			    pos            : THREE.Vector3   = valueReader(this.opt.initialPosition).add(emitterPosition),
 			    vel            : THREE.Vector3   = valueReader(this.opt.initialVelocity, {min: -127, max: 127}), // TODO what if initVel.value=[400,0,0]
-			    col:   StartEndRange<THREE.Color>= valueReader(this.opt.colorOverLife, {isColor: true, isRange: true}),
-			    opacity: StartEndRange<number>   = valueReader(this.opt.opacityOverLife, {isRange: true, mul: 255, min: 0, max: 255}),
-			    scale  : StartEndRange<number>   = valueReader(this.opt.sizeOverLife, {isRange: true, isInt: true}),
+			    col: StartEndRange<THREE.Color>  = valueReader(this.opt.colorOverLife,   {isColor: true, isRange: true}),
+			    opacity: StartEndRange<number>   = valueReader(this.opt.opacityOverLife, {isRange: true, isInt: true, mul: 255, min: 0, max: 255}),
+			    scale  : StartEndRange<number>   = valueReader(this.opt.sizeOverLife,    {isRange: true, isInt: true}),
 			    turbulence: StartEndRange<number>= valueReader(this.opt.turbulenceOverLife, {isRange: true, isInt: true, mul: 255, min: 0, max: 255}),
 			    colSt = col.startValue(), colEnd = col.endValue();
 
+
       let buf1AttrValues = [
             pos.x, pos.y, pos.z,
-            Utils.encodeUint8VectorAsFloat(vel.x + 127, vel.y + 127, vel.z + 127, 0.0)],
+            Utils.encodeUint8VectorAsFloat(vel.x + 127, vel.y + 127, vel.z + 127, 0.0)
+          ],
           buf2AttrValues = [
             Utils.encodeUint8VectorAsFloat(colSt.r,  colSt.g,  colSt.b,  opacity.startValue()),
-            Utils.encodeUint8VectorAsFloat(colEnd.r, colEnd.g, colEnd.b, opacity.endValue()),
-            Utils.encodeUint8VectorAsFloat(scale.startValue(),      scale.endValue(),
-                                           turbulence.startValue(), turbulence.endValue()),
-            clockDeltaData.currentTime
-            // valueReader(this.opt.lifetime)
-         ];
+            Utils.encodeUint8VectorAsFloat(colEnd.r, colEnd.g, colEnd.b, opacity.endValue())
+          ],
+				  buf3AttrValues = [
+					  clockDeltaData.timeFromSimulationStart,
+					  valueReader(this.opt.lifetime),
+					  Utils.encodeUint8VectorAsFloat(scale.startValue(),      scale.endValue(),
+                                           turbulence.startValue(), turbulence.endValue())
+				  ];
 
       Utils.copyArrInto(this.posStartAndTimeAttr.array, i*4, buf1AttrValues);
-      Utils.copyArrInto(this.miscDataAttr.array,        i*4, buf2AttrValues);
+      Utils.copyArrInto(this.particleColorAttr.array,   i*2, buf2AttrValues);
+			Utils.copyArrInto(this.miscDataAttr.array,        i*3, buf3AttrValues);
 
 
 			if (this.offset === 0) {
@@ -149,17 +153,25 @@ module GpuParticles {
 
 			// set the range of values that is dirty
 			// if we can get away with a partial buffer update, do so
-			let posDirtyRange  = this.posStartAndTimeAttr.updateRange,
-					miscDirtyRange = this.miscDataAttr.updateRange;
+			let posDirtyRange   = this.posStartAndTimeAttr.updateRange,
+					colDirtyRange   = this.particleColorAttr.updateRange,
+					misc2DirtyRange = this.miscDataAttr.updateRange;
 			if (this.offset + this.count < this.getParticleCount()) {
-        posDirtyRange.offset = miscDirtyRange.offset = this.offset * 4;
-        posDirtyRange.count  = miscDirtyRange.count  = this.count * 4;
+        posDirtyRange.offset   = this.offset * 4;
+        posDirtyRange.count    = this.count  * 4;
+				colDirtyRange.offset   = this.offset * 2;
+				colDirtyRange.count    = this.count  * 2;
+				misc2DirtyRange.offset = this.offset * 3;
+				misc2DirtyRange.count  = this.count  * 3;
       } else {
         posDirtyRange.offset = 0;
-        posDirtyRange.count  = miscDirtyRange.count = this.getParticleCount() * 4;
+        posDirtyRange.count   = this.getParticleCount() * 4;
+				colDirtyRange.count   = this.getParticleCount() * 2;
+				misc2DirtyRange.count = this.getParticleCount() * 3;
       }
       this.posStartAndTimeAttr.needsUpdate = true;
-      this.miscDataAttr.needsUpdate = true;
+      this.particleColorAttr.needsUpdate = true;
+			this.miscDataAttr.needsUpdate = true;
 
       this.offset = 0;
       this.count = 0;

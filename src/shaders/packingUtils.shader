@@ -40,7 +40,7 @@ lowp vec4 decodeUint8VectorFromFloat(highp float v) {
     c[0] += 128.0 * step(0.0, -v);
 
     //Scale back to range
-    return c / 255.0;
+    return c;
 }
 
 vec4 pack(const in float depth)

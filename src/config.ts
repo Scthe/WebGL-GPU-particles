@@ -65,9 +65,9 @@ const config = {
 				verticalSpeed:  1.33, // used for elipsis
 				emitterPosition: function (clockDeltaData: App.ClockDeltaData): THREE.Vector3 {
 					return new THREE.Vector3(
-						Math.sin(clockDeltaData.currentTime * this.horizontalSpeed) * 20,
-						Math.sin(clockDeltaData.currentTime * this.verticalSpeed) * 10,
-						Math.sin(clockDeltaData.currentTime * this.horizontalSpeed + this.verticalSpeed) * 5
+						Math.sin(clockDeltaData.timeFromSimulationStart * this.horizontalSpeed) * 20,
+						Math.sin(clockDeltaData.timeFromSimulationStart * this.verticalSpeed) * 10,
+						Math.sin(clockDeltaData.timeFromSimulationStart * this.horizontalSpeed + this.verticalSpeed) * 5
 					);
 				}
 			}

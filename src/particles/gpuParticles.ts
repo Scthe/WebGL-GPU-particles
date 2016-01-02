@@ -115,7 +115,7 @@ module GpuParticles {
 		}
 
 		update(clockDeltaData: App.ClockDeltaData) {
-			this.particleShaderMat.uniforms['uTime'].value = clockDeltaData.currentTime;
+			this.particleShaderMat.uniforms['uTime'].value = clockDeltaData.timeFromSimulationStart;
 
 			if (clockDeltaData.delta > 0) {
 				_.each(this.emiters, emitter => { this.updateEmiter(clockDeltaData, emitter); });

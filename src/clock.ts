@@ -5,22 +5,22 @@ module App {
 	export interface ClockDeltaData {
 		clockStartTime: number;
 		delta: number;
-		currentTime: number;
+		timeFromSimulationStart: number;
 		// tickId: number;
 	}
 
-	var currentTime = 0,
+	var timeFromSimulationStart = 0,
 	    clock;
 
 	export function createClockDeltaData(): ClockDeltaData {
 		clock = clock || new THREE.Clock(true);
 		let delta = clock.getDelta();
-		currentTime += delta;
+		timeFromSimulationStart += delta;
 
 		let clockDeltaData = {};
 		Object.defineProperty(clockDeltaData, 'clockStartTime', {value: clock.startTime })
 		Object.defineProperty(clockDeltaData, 'delta',          {value: delta })
-		Object.defineProperty(clockDeltaData, 'currentTime',    {value: currentTime })
+		Object.defineProperty(clockDeltaData, 'timeFromSimulationStart', {value: timeFromSimulationStart })
 		return <ClockDeltaData>clockDeltaData;
 	}
 
