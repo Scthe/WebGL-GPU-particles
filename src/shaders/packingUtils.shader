@@ -5,16 +5,16 @@ const vec4 bitShifts = vec4(1.) / bitSh;
 #define FLOAT_MAX  1.70141184e38
 #define FLOAT_MIN  1.17549435e-38
 
-lowp vec4 encode_float(highp float v) {
+lowp vec4 decodeUint8VectorFromFloat(highp float v) {
     highp float av = abs(v);
 
     //Handle special cases
     if(av < FLOAT_MIN) {
-        return vec4(0.0, 0.0, 0.0, 0.0);
-        } else if(v > FLOAT_MAX) {
-        return vec4(127.0, 128.0, 0.0, 0.0) / 255.0;
-        } else if(v < -FLOAT_MAX) {
-        return vec4(255.0, 128.0, 0.0, 0.0) / 255.0;
+      return vec4(0.0, 0.0, 0.0, 0.0);
+    } else if(v > FLOAT_MAX) {
+      return vec4(127.0, 128.0, 0.0, 0.0) / 255.0;
+    } else if(v < -FLOAT_MAX) {
+      return vec4(255.0, 128.0, 0.0, 0.0) / 255.0;
     }
 
     highp vec4 c = vec4(0,0,0,0);
@@ -40,7 +40,7 @@ lowp vec4 encode_float(highp float v) {
     c[0] += 128.0 * step(0.0, -v);
 
     //Scale back to range
-    return c / 255.0;
+    return c;
 }
 
 vec4 pack(const in float depth)

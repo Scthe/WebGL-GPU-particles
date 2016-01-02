@@ -7,52 +7,66 @@ uniform float uTime;
 uniform float uScale;
 uniform sampler2D tNoise;
 
-attribute vec4 particlePositionAndTime; // x,y,z,time
-attribute vec4 particleMiscData;        // velocity.xyz + turbulence, color, size, lifespan
 
-#define P_SPAWN_TIME (particlePositionAndTime.a)
-#define P_TURBULENCE (velTurb.w)
-#define P_COLOR (particleMiscData.y)
-#define P_SCALE (particleMiscData.z)
-#define P_LIFESPAN (particleMiscData.a)
+// attribute vec3 position; // added by three.js: spawntime, lifespan, size+turbulence,
+attribute vec4 particlePositionAndVel; // x,y,z,velocity
+attribute vec2 particleColor;      // colorStart, colorEnd
+
+#define P_POS        (particlePositionAndVel.xyz)
+#define P_VEL_C      (particlePositionAndVel.w)
+#define P_VELOCITY   (vel4.xyz)
+// #define P_ (vel4.w) // unused
+#define P_COLOR_ST   (particleColor.x)
+#define P_COLOR_END  (particleColor.y)
+#define P_SPAWN_TIME (position.x)
+#define P_LIFESPAN   (position.y)
+#define P_SCALE_TURB (position.z)
+#define P_SCALE_ST   (scaleTurb.x)
+#define P_SCALE_END  (scaleTurb.y)
+#define P_TURB_ST    (scaleTurb.z)
+#define P_TURB_END   (scaleTurb.w)
 
 varying vec4 vColor;
 varying float lifeLeft;
 
 void main() {
-    // unpack values from attributes
-    vColor = encode_float(P_COLOR);
-    vec4 velTurb = encode_float(particleMiscData.x);
-    vec3 velocity = velTurb.xyz;
+    // unpack values from attributes (all in [0..1] range)
+    vec4 colorStart = decodeUint8VectorFromFloat(P_COLOR_ST)   / 255.0;
+    vec4 colorEnd   = decodeUint8VectorFromFloat(P_COLOR_END)  / 255.0;
+    vec4 vel4       = decodeUint8VectorFromFloat(P_VEL_C)      / 255.0;
+    vec4 scaleTurb  = decodeUint8VectorFromFloat(P_SCALE_TURB) / 255.0;
 
     // handle lifetime
 #define P_LIFE_MOMENT (timeElapsedFromSpawn / P_LIFESPAN)
     float timeElapsedFromSpawn = uTime - P_SPAWN_TIME;
     lifeLeft = 1.0 - P_LIFE_MOMENT;
 
-    // set scale (bigger as life goes)
-    gl_PointSize = (uScale * P_SCALE) * lifeLeft;
+    // set color and scale, interpolate values based on life moment
+    float turbulence = mix(P_TURB_ST, P_TURB_END, P_LIFE_MOMENT);
 
     // simple linear extrapolation
-    vec3 newPosition = particlePositionAndTime.xyz + ( velocity * 10.0 ) * timeElapsedFromSpawn;
+    vec3 newPosition = P_POS + P_VELOCITY * timeElapsedFromSpawn * 5.0; // magic number
 
     // add random turbulence - use noise texture as source of random variables
     // the older the particle is, the more turbulence over life
     vec2 particleTexurePos = vec2(newPosition.x * 0.015 + (uTime * 0.050),
                                   newPosition.y * 0.020 + (uTime * 0.015));
-    vec3 noise = texture2D(tNoise, particleTexurePos).rgb;
-    vec3 noiseVel = (noise.rgb - 0.5) * 30.0;  // TODO magic noise strength?
+    vec3 noise = texture2D(tNoise, particleTexurePos).rgb - 0.5; //  from [0..1] to [-0.5..0.5]
     newPosition = mix(newPosition,
-                      newPosition + vec3(noiseVel * (P_TURBULENCE * 5.0)), // TODO magic turbulence strength?
-                      P_LIFE_MOMENT);
+                      newPosition + noise.rgb * 150.0, // magic number
+                      turbulence);
 
-    if(timeElapsedFromSpawn > 0.0) {
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
-    } else {
-      // on spawn
+
+    if (P_LIFE_MOMENT < 0.0 || P_LIFE_MOMENT >= 1.0){
+      // pre spawn or after lifetime
       gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      lifeLeft = 0.0;
       gl_PointSize = 0.0;
+      vColor.w = 0.0;
+      lifeLeft = 0.0;
+    } else {
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
+      vColor = mix(colorStart, colorEnd, P_LIFE_MOMENT);
+      gl_PointSize = uScale * mix(P_SCALE_ST, P_SCALE_END, P_LIFE_MOMENT) * 255.0; // magic number
     }
 }
 
@@ -61,30 +75,17 @@ void main() {
 //////////////////////////////////////////////
 [fragment shader]
 
-float scaleLinear(float value, vec2 valueDomain) {
-    return (value - valueDomain.x) / (valueDomain.y - valueDomain.x);
-}
-
-float scaleLinear(float value, vec2 valueDomain, vec2 valueRange) {
-    return mix(valueRange.x, valueRange.y, scaleLinear(value, valueDomain));
-}
-
 varying vec4 vColor;
 varying float lifeLeft;
 
 uniform sampler2D tSprite;
 
 void main() {
-
-    float alpha = 0.;
-
-    if( lifeLeft > .995 ) {
-      alpha = scaleLinear( lifeLeft, vec2(1., .995), vec2(0., 1.));//mix( 0., 1., ( lifeLeft - .95 ) * 100. ) * .75;
-    } else {
-      alpha = lifeLeft * .75;
-    }
-
     vec4 tex = texture2D(tSprite, gl_PointCoord);
 
-    gl_FragColor = vec4(vColor.rgb * tex.a, alpha * tex.a);
+    if (lifeLeft < .05){ // prevents weird things
+      tex.a *= lifeLeft * .75;
+    }
+
+    gl_FragColor = vColor * tex.a;
 }

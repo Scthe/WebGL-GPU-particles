@@ -9,7 +9,7 @@ module Utils {
 	var UINT8_VIEW = new Uint8Array(4);
 	var FLOAT_VIEW = new Float32Array(UINT8_VIEW.buffer);
 
-	export function decodeFloat(x: number, y: number, z: number, w: number) {
+	export function encodeUint8VectorAsFloat(x: number, y: number, z: number, w: number) {
 		UINT8_VIEW[0] = Math.floor(w)
 		UINT8_VIEW[1] = Math.floor(z)
 		UINT8_VIEW[2] = Math.floor(y)
@@ -17,9 +17,9 @@ module Utils {
 		return FLOAT_VIEW[0]
 	}
 
-	export function fillParticleDataOnIdx (arr: F32Arr, idx: number, vals: Array<number>): void {
-		for (let i = 0; i < vals.length; i++) {
-				arr[idx + i] = vals[i];
+	export function copyArrInto(arr: F32Arr, arrBaseIdx: number, vals: Array<number>): void {
+		for (let i = 0; i < vals.length && arrBaseIdx + i < arr.length; i++) {
+				arr[arrBaseIdx + i] = vals[i];
 		}
 	}
 
