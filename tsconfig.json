@@ -17,6 +17,7 @@
         "src/app.ts",
         "src/config.ts",
         "src/clock.ts",
+        "src/ui.ts",
         "src/main.ts"
     ]
 }

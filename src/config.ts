@@ -7,7 +7,7 @@ import StartEndRange = GpuParticles.StartEndRange;
 
 const config = {
 
-	background: new THREE.Color(0x404040),
+	background: new THREE.Color(0x000000),
 	width: width,
 	height: height,
 

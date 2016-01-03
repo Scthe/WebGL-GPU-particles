@@ -45,6 +45,62 @@ module GpuParticles {
 			iterations: number,
 		}
 		*/
+
+	}
+
+	export function unifyInternalRepresentation(opt: EmitterOptions): EmitterOptions {
+		opt.lifetime        = wrapInVWD(opt.lifetime);
+		opt.initialPosition = wrapInVWD(opt.initialPosition);
+		opt.initialVelocity = wrapInVWD(opt.initialVelocity);
+		opt.turbulenceOverLife = wrapInVWD_SER(opt.turbulenceOverLife);
+		opt.sizeOverLife       = wrapInVWD_SER(opt.sizeOverLife);
+		opt.colorOverLife      = unifyColorRepresentation(opt.colorOverLife);
+		opt.opacityOverLife    = wrapInVWD_SER(opt.opacityOverLife);
+		return opt;
+	}
+
+	function wrapInVWD(val: any): any{
+		return getValueTypeName(val) === 'ValueWithDistribution' ?
+		val : new ValueWithDistribution(val);
+	}
+
+	function wrapInVWD_SER(val: any): any {
+		let type = getValueTypeName(val);
+
+		if (type === 'number'){
+			return new ValueWithDistribution(new StartEndRange(val));
+		} else if (type === 'Color'){
+			val = new THREE.Color(val);
+			return new ValueWithDistribution(new StartEndRange(val));
+		} else if (type === 'StartEndRange'){
+			return new ValueWithDistribution(val);
+		} else if (type === 'ValueWithDistribution'){
+			return val;
+		} else {
+			throw 'Error trying to unify config representation';
+		}
+	}
+
+	function unifyColorRepresentation(val: any): ValueWithDistribution<StartEndRange<THREE.Color>> {
+		let type = getValueTypeName(val);
+		console.log(val)
+
+		if (type === 'number'){
+			return unifyColorRepresentation(new THREE.Color(val));
+		} else if (type === 'Color'){
+			val = new THREE.Color(val);
+			return new ValueWithDistribution(new StartEndRange(val));
+		} else if (type === 'StartEndRange'){
+			val._startValue = new THREE.Color(val.startValue());
+			val._endValue = new THREE.Color(val.endValue());
+			return new ValueWithDistribution(val);
+		} else if (type === 'ValueWithDistribution'){
+			let v = unifyColorRepresentation(val.value);
+			v.distribution = val.distribution;
+			return v;
+		} else {
+			throw 'Error trying to unify color representation';
+		}
 	}
 
 }

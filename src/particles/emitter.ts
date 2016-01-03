@@ -72,8 +72,10 @@ module GpuParticles {
 		}
 
 		setEmitterOptions(opt: EmitterOptions, replace?: boolean): void {
-			let prevOpt = replace ? this.getParticleSystem().defaultSpawnOptions() : this.opt;
-			this.opt = _.extend({}, prevOpt, opt);
+			let prevOpt = replace ? this.getParticleSystem().defaultSpawnOptions() : this.opt,
+			    newOpt = _.extend({}, prevOpt, opt);
+			this.opt = unifyInternalRepresentation(newOpt);
+			// this.opt = newOpt;
 			this.visible = this.opt.visible;
 		}
 
