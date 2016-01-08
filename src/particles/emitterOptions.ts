@@ -5,6 +5,9 @@ module GpuParticles {
 
 	// https://docs.unrealengine.com/latest/INT/Engine/Rendering/ParticleSystems/Reference/index.html
 
+	// !!! TODO use fluent interfaces !!!
+	// f.e. baseType<number>(ValueType.NUMBER).canBeFunction().hasStartAndEndValues(),hasDistribution();
+
 	export interface EmitterOptions {
 		name: string;
 		visible: boolean;
@@ -15,7 +18,6 @@ module GpuParticles {
 		// constantAcceleration: THREE.Vector3;
 
 		// per particle values
-		// TODO allow not only ValueWithDistribution but raw values too
 		// TODO size by speed works per axis, giving pseudo motion blur
 		lifetime:             number | ValueWithDistribution<number>;
 		initialPosition:      THREE.Vector3 | ValueWithDistribution<THREE.Vector3>;
@@ -61,7 +63,7 @@ module GpuParticles {
 
 	function wrapInVWD(val: any): any{
 		return getValueTypeName(val) === 'ValueWithDistribution' ?
-		val : new ValueWithDistribution(val);
+		          val : new ValueWithDistribution(val);
 	}
 
 	function wrapInVWD_SER(val: any): any {

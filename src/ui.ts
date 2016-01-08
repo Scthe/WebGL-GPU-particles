@@ -10,6 +10,8 @@ module App {
 	import SER = GpuParticles.StartEndRange;
 	import ParticleColor = GpuParticles.ParticleColor;
 	import EmitterOptions = GpuParticles.EmitterOptions;
+	import Emitter = GpuParticles.Emitter;
+
 	type VWD_SER_number = ValueWithDistribution<StartEndRange<number>>;
 
 	export class UI {
@@ -19,76 +21,84 @@ module App {
 
 		init(renderer: THREE.WebGLRenderer, scene: THREE.Scene, app: App): void {
 			console.log('ui init');
-			let cfg = config,
-		    gui = new dat.GUI();
+			let gui = new dat.GUI();
 
 			// general
-			UI.addColorCtrls(gui, cfg.background, 'background', v => {
+			UI.addColorCtrls(gui, config.background, 'background', v => {
 				renderer.setClearColor(config.background);
 			});
 
-			let emOpts = app.getParticleSystem().getEmitterOpts();
+			let emOpts = app.getParticleSystem().getEmitters();
 			_.each(emOpts, (v) =>{
 				this.addEmitterControls(gui, v);
 			});
 		}
 
-		addEmitterControls(gui, eOpt: EmitterOptions): void {
-			let folder = gui.addFolder(eOpt.name), innerFolder;
+		addEmitterControls(gui, emitter: Emitter): void {
+			let emitterOpt: EmitterOptions = emitter.getEmitterOptions(),
+			    folder = gui.addFolder('Emitter'), innerFolder;
 			folder.open();
 
-			folder.add(eOpt, 'visible'); // TODO fix
-			folder.add(eOpt, 'count', 1000, 1000000); // TODO fix
-			folder.add(eOpt, 'spawnRate', 100, 50000);
-			UI.addVectorCtrls(folder, '', eOpt.emitterPosition, 500);
+			folder.add(emitter, 'visible');
+			folder.add(emitterOpt, 'count', 1000, 1000000).onFinishChange(function(value) {
+				// emitterOpt.count = value;
+				emitter.init(emitterOpt);
+			});
+			folder.add(emitterOpt, 'spawnRate', 100, 50000);
+			// UI.addVectorCtrls(folder, '', emitterOpt.emitterPosition, 500); // TODO fix
 
 			// lifetime
-			UI.assertType(eOpt.lifetime, 'ValueWithDistribution');
-			let ltVWD: VWD<number> = <any>eOpt.lifetime;
+			UI.assertType(emitterOpt.lifetime, 'ValueWithDistribution');
+			let ltVWD: VWD<number> = <any>emitterOpt.lifetime;
 			UI.assertType(ltVWD.value, 'number');
 			folder.add(ltVWD, 'value', 0.5, 7).name('lifetime');
 			folder.add(ltVWD, 'distribution', 0, 3).name('lifetime rand');
 
 			// initialPosition
-			UI.assertType(eOpt.initialPosition, 'ValueWithDistribution');
-			let ip: VWD<THREE.Vector3> = <any>eOpt.initialPosition;
-			UI.assertType(ip.value, 'Vector3');
 			innerFolder = folder.addFolder('Initial particle position');
+			UI.assertType(emitterOpt.initialPosition, 'ValueWithDistribution');
+			let ip: VWD<THREE.Vector3> = <any>emitterOpt.initialPosition;
+			UI.assertType(ip.value, 'Vector3');
 			UI.addVectorCtrls(innerFolder, '', ip.value, 50);
-			innerFolder.add(ip, 'distribution', 0, 3).name('rand');
-			// innerFolder.open();
+			innerFolder.add(ip, 'distribution', 0, 20).name('rand');
 
 			// initialVelocity
-			UI.assertType(eOpt.initialVelocity, 'ValueWithDistribution');
-			let iv: VWD<THREE.Vector3> = <any>eOpt.initialVelocity;
-			UI.assertType(ip.value, 'Vector3');
 			innerFolder = folder.addFolder('Initial Velocity');
+			UI.assertType(emitterOpt.initialVelocity, 'ValueWithDistribution');
+			let iv: VWD<THREE.Vector3> = <any>emitterOpt.initialVelocity;
+			UI.assertType(iv.value, 'Vector3');
 			// UI.addVectorCtrls(innerFolder, '', iv.value, 50); // TODO - may require serious changes, see note in emitter.ts
-			innerFolder.add(ip, 'distribution', 0, 3).name('rand');
-			// innerFolder.open();
+			innerFolder.add(iv, 'distribution', 0, 255).name('rand');
 
 			// turbulenceOverLife
 			innerFolder = folder.addFolder('turbulence');
-			UI.addVWD_SER_number_Ctrls(innerFolder, '', eOpt.turbulenceOverLife);
+			UI.addVWD_SER_number_Ctrls(innerFolder, '', emitterOpt.turbulenceOverLife);
 
-			// sizeOverLife TODO fix
+			// sizeOverLife
 			innerFolder = folder.addFolder('size');
-			UI.addVWD_SER_number_Ctrls(innerFolder, '', eOpt.sizeOverLife);
+			UI.addVWD_SER_number_Ctrls(innerFolder, '', emitterOpt.sizeOverLife);
 
-			// colorOverLife TODO add color selector
+			// colorOverLife
 			innerFolder = folder.addFolder('color');
-			UI.assertType(eOpt.colorOverLife, 'ValueWithDistribution');
-			let col: VWD<StartEndRange<THREE.Color>> = <any>eOpt.colorOverLife;
+			UI.assertType(emitterOpt.colorOverLife, 'ValueWithDistribution');
+			let col: VWD<StartEndRange<THREE.Color>> = <any>emitterOpt.colorOverLife;
 			UI.assertType(col.value, 'StartEndRange');
 			// UI.assertType(col.value.startValue(), 'THREE.Color');
 			// UI.assertType(col.value.endValue(), 'THREE.Color');
-			UI.addColorCtrls(innerFolder, col.value._startValue, 'start')
-			UI.addColorCtrls(innerFolder, col.value._endValue, 'end')
-			innerFolder.add(col, 'distribution', 0, 1).name(`rand`);
+			UI.addColorCtrls(innerFolder, col.value._startValue, 'start', (v) => {
+				col.value._startValue.setStyle(v);
+			});
+			UI.addColorCtrls(innerFolder, col.value._endValue, 'end', (v) => {
+				col.value._endValue.setStyle(v);
+			})
+			innerFolder.add(col, 'distribution', 0, 1).name(`rand`).onChange((v) => {
+				let col: any = emitter.getEmitterOptions().colorOverLife;
+				col.distribution = v;
+			});
 
 			// opacityOverLife
 			innerFolder = folder.addFolder('opacity');
-			UI.addVWD_SER_number_Ctrls(innerFolder, '', eOpt.opacityOverLife);
+			UI.addVWD_SER_number_Ctrls(innerFolder, '', emitterOpt.opacityOverLife);
 		}
 
 		static assertType(val: any, type: string){
@@ -123,9 +133,9 @@ module App {
 			UI.assertType(val.value.endValue(), 'number');
 
 			let vv: VWD_SER_number = val;
-			gui.add(vv.value, '_startValue', 0, 1).name(`${name} start`);
-			gui.add(vv.value, '_endValue', 0, 1).name(`${name} end`);
-			gui.add(vv, 'distribution', 0, 1).name(`${name} rand`);
+			gui.add(vv.value, '_startValue', 0.0, 1.0).name(`${name} start`);
+			gui.add(vv.value, '_endValue',   0.0, 1.0).name(`${name} end`);
+			gui.add(vv, 'distribution',      0.0, 1.0).name(`${name} rand`);
 		}
 
 		/**

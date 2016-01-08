@@ -7,7 +7,7 @@ import StartEndRange = GpuParticles.StartEndRange;
 
 const config = {
 
-	background: new THREE.Color(0x000000),
+	background: new THREE.Color(0x2a2a2a),
 	width: width,
 	height: height,
 
@@ -56,7 +56,8 @@ const config = {
 				name: 'fire projectile',
 				count: 1000,
 				spawnRate: 100,
-				sizeOverLife: new ValueWithDistribution(new StartEndRange(30.0, 5.0), 1.0),
+				// sizeOverLife: new ValueWithDistribution(new StartEndRange(0.12, 0.93), 0.5),
+				sizeOverLife: new StartEndRange(0.2, 1.0),
 				initialVelocity: new ValueWithDistribution(new THREE.Vector3(), 30), // [0..255]
 				turbulenceOverLife: new ValueWithDistribution(new StartEndRange(0, 1.0), 0.0), // [0..1]
 				opacityOverLife: new StartEndRange(1.0, 0.3),

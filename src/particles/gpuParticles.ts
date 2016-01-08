@@ -63,8 +63,8 @@ module GpuParticles {
 			return defaultParticleSpawnOptions;
 		}
 
-		getEmitterOpts(): EmitterOptions[]{
-			return _.pluck(this.emiters, 'opt');
+		getEmitters(): Emitter[]{
+			return this.emiters;
 		}
 
 		private createBaseMaterial(shaderLoader: Utils.ShaderLoader): Q.Promise<THREE.ShaderMaterial> {
@@ -127,7 +127,9 @@ module GpuParticles {
 		private updateEmiter (clockDeltaData: App.ClockDeltaData, emitter: Emitter): void {
 			if (!emitter.visible) return;
 
-			for (var x = 0; x < emitter.opt.spawnRate * clockDeltaData.delta; x++) {
+			let toEmitCount = Math.min(emitter.getParticleCount() / 5,
+			                           emitter.getEmitterOptions().spawnRate * clockDeltaData.delta);
+			for (var x = 0; x < toEmitCount; x++) {
 				emitter.spawnParticle(clockDeltaData);
 			}
 
