@@ -17,18 +17,13 @@ module GpuParticles {
 	export class Emitter extends THREE.Object3D {
 
 		// general
-		opt: EmitterOptions;
+		private opt: EmitterOptions;
 		private particleIterator: number;
-		/** if needs updating */
-		private particleUpdate: boolean;
-		/** used when marking particles as dirty - to minimize updated particles count */
-		private offset: number;
-		/** used when marking particles as dirty - to minimize updated particles count */
-		private count: number;
+		private dirtyStatus: { needsUpdate: boolean, offset: number, count: number};
 		// cpu
-		private particleVertices:        Float32Array;
-		private particlePositionAndVel:  Float32Array;
-		private particleColorData:       Float32Array;
+		private particleVertices:       Float32Array;
+		private particlePositionAndVel: Float32Array;
+		private particleColorData:      Float32Array;
 		// object & geom
 		private particlePointsObject:THREE.Points;
 		private particleShaderMat:   THREE.ShaderMaterial;
@@ -40,16 +35,19 @@ module GpuParticles {
 
 		constructor(){
 			super();
-			this.particleIterator = 0;
-			this.particleUpdate = false;
-			this.offset = 0;
-			this.count = 0;
 		}
 
-		init(opt: EmitterOptions, material:THREE.ShaderMaterial) {
-			this.setEmitterOptions(opt, true);
-			this.particleUpdate = false;
+		init(opt: EmitterOptions, material?:THREE.ShaderMaterial) {
+			this.particleIterator = 0;
+			this.dirtyStatus = {
+				needsUpdate: false,
+				offset: 0,
+				count: 0
+			};
 
+			this.updateEmitterOptions(opt, true);
+
+			this.cleanBuffers();
 			this.initBuffers();
 
 			type BufferAttr = THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
@@ -61,7 +59,9 @@ module GpuParticles {
 		  this.particleColorAttr   = toBufferAttrData(this.particleShaderGeom.getAttribute('particleColor'));
 		  this.miscDataAttr        = toBufferAttrData(this.particleShaderGeom.getAttribute('position'));
 
-			this.particleShaderMat = material;
+			if (material !== undefined){ this.particleShaderMat = material; }
+			if (this.particleShaderMat === undefined){ throw new Error('Emitter material cannot be null'); }
+
 			this.particlePointsObject = new THREE.Points(this.particleShaderGeom, this.particleShaderMat);
 			this.particlePointsObject.frustumCulled = false;
 			this.add(this.particlePointsObject);
@@ -71,10 +71,16 @@ module GpuParticles {
 			}
 		}
 
-		setEmitterOptions(opt: EmitterOptions, replace?: boolean): void {
-			let prevOpt = replace ? this.getParticleSystem().defaultSpawnOptions() : this.opt;
-			this.opt = _.extend({}, prevOpt, opt);
-			this.visible = this.opt.visible;
+		private cleanBuffers(){
+			if (this.particlePointsObject === undefined) return;
+
+			this.remove(this.particlePointsObject);
+			if (this.particlePointsObject.geometry){
+				this.particlePointsObject.geometry.dispose();
+				this.particlePointsObject.geometry = undefined;
+      }
+
+			// TODO disposing material may cleanup shaders, which we don't want
 		}
 
 		private initBuffers() {
@@ -107,8 +113,8 @@ module GpuParticles {
 			    pos            : THREE.Vector3   = valueReader(this.opt.initialPosition).add(emitterPosition),
 			    vel            : THREE.Vector3   = valueReader(this.opt.initialVelocity, {min: -127, max: 127}), // TODO what if initVel.value=[400,0,0]
 			    col: StartEndRange<THREE.Color>  = valueReader(this.opt.colorOverLife,   {isColor: true, isRange: true}),
-			    opacity: StartEndRange<number>   = valueReader(this.opt.opacityOverLife, {isRange: true, isInt: true, mul: 255, min: 0, max: 255}),
-			    scale  : StartEndRange<number>   = valueReader(this.opt.sizeOverLife,    {isRange: true, isInt: true}),
+			    opacity: StartEndRange<number>   = valueReader(this.opt.opacityOverLife,    {isRange: true, isInt: true, mul: 255, min: 0, max: 255}),
+			    scale  : StartEndRange<number>   = valueReader(this.opt.sizeOverLife,       {isRange: true, isInt: true, mul: 255, min: 0, max: 255}),
 			    turbulence: StartEndRange<number>= valueReader(this.opt.turbulenceOverLife, {isRange: true, isInt: true, mul: 255, min: 0, max: 255}),
 			    colSt = col.startValue(), colEnd = col.endValue();
 
@@ -133,14 +139,14 @@ module GpuParticles {
 			Utils.copyArrInto(this.miscDataAttr.array,        i*3, buf3AttrValues);
 
 
-			if (this.offset === 0) {
-				this.offset = this.getParticleCount();
+			if (this.dirtyStatus.offset === 0) {
+				this.dirtyStatus.offset = this.getParticleCount();
 			}
-			++this.count;
+			++this.dirtyStatus.count;
+			this.dirtyStatus.needsUpdate = true;
+
 			++this.particleIterator;
 			this.particleIterator = this.particleIterator >= this.getParticleCount() ? 0 : this.particleIterator;
-
-			this.particleUpdate = true;
 		}
 
 		update(clockDeltaData: App.ClockDeltaData) {
@@ -148,21 +154,21 @@ module GpuParticles {
 		}
 
 		private geometryUpdate() {
-			if (!this.particleUpdate) return;
-      this.particleUpdate = false;
+			if (!this.dirtyStatus.needsUpdate) return;
+      this.dirtyStatus.needsUpdate = false;
 
 			// set the range of values that is dirty
 			// if we can get away with a partial buffer update, do so
 			let posDirtyRange   = this.posStartAndTimeAttr.updateRange,
 					colDirtyRange   = this.particleColorAttr.updateRange,
 					misc2DirtyRange = this.miscDataAttr.updateRange;
-			if (this.offset + this.count < this.getParticleCount()) {
-        posDirtyRange.offset   = this.offset * 4;
-        posDirtyRange.count    = this.count  * 4;
-				colDirtyRange.offset   = this.offset * 2;
-				colDirtyRange.count    = this.count  * 2;
-				misc2DirtyRange.offset = this.offset * 3;
-				misc2DirtyRange.count  = this.count  * 3;
+			if (this.dirtyStatus.offset + this.dirtyStatus.count < this.getParticleCount()) {
+        posDirtyRange.offset   = this.dirtyStatus.offset * 4;
+        posDirtyRange.count    = this.dirtyStatus.count  * 4;
+				colDirtyRange.offset   = this.dirtyStatus.offset * 2;
+				colDirtyRange.count    = this.dirtyStatus.count  * 2;
+				misc2DirtyRange.offset = this.dirtyStatus.offset * 3;
+				misc2DirtyRange.count  = this.dirtyStatus.count  * 3;
       } else {
         posDirtyRange.offset = 0;
         posDirtyRange.count   = this.getParticleCount() * 4;
@@ -173,16 +179,34 @@ module GpuParticles {
       this.particleColorAttr.needsUpdate = true;
 			this.miscDataAttr.needsUpdate = true;
 
-      this.offset = 0;
-      this.count = 0;
+      this.dirtyStatus.offset = 0;
+      this.dirtyStatus.count = 0;
 	  }
 
-		getParticleSystem(): GpuParticles{
+		getParticleSystem(): GpuParticles {
 			return <GpuParticles>this.parent;
 		}
 
-		private getParticleCount(): number{
-			return this.opt.count;
+		getParticleCount(): number {
+			return Math.floor(this.getEmitterOptions().count);
+		}
+
+		getEmitterOptions(): EmitterOptions {
+			return this.opt;
+		}
+
+		private updateEmitterOptions(updateSet: EmitterOptions, discardOld?: boolean): void {
+			this.opt = (this.opt !== undefined) ? // values will be discarded, we only want the object instance
+									this.opt : this.getParticleSystem().defaultSpawnOptions();
+
+
+			let prevOpt = discardOld ? this.getParticleSystem().defaultSpawnOptions() : this.opt,
+			    newOpt = _.extend({}, prevOpt, updateSet);
+			newOpt = unifyInternalRepresentation(newOpt);
+
+			_.extend(this.opt, newOpt); // copy to the one and only
+
+			this.visible = this.opt.visible;
 		}
 	}
 

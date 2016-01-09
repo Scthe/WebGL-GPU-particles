@@ -32,13 +32,9 @@ module GpuParticles {
 
 	export class GpuParticles extends THREE.Object3D {
 
-		// TODO for gui add editableProperties: ['','',..] or annotations like UPROPERTY(EditAnywhere, Category=Delay)
-
 		private cfg: any;
 		private emiters: Emitter[];
 		private particleShaderMat: THREE.ShaderMaterial;
-		private posStartAndTimeAttr: BufferAttr;
-		private miscDataAttr:   BufferAttr;
 
 
 		constructor(){
@@ -65,6 +61,10 @@ module GpuParticles {
 
 		defaultSpawnOptions(): EmitterOptions{
 			return defaultParticleSpawnOptions;
+		}
+
+		getEmitters(): Emitter[]{
+			return this.emiters;
 		}
 
 		private createBaseMaterial(shaderLoader: Utils.ShaderLoader): Q.Promise<THREE.ShaderMaterial> {
@@ -115,6 +115,8 @@ module GpuParticles {
 		}
 
 		update(clockDeltaData: App.ClockDeltaData) {
+			if (this.particleShaderMat === undefined) return;
+
 			this.particleShaderMat.uniforms['uTime'].value = clockDeltaData.timeFromSimulationStart;
 
 			if (clockDeltaData.delta > 0) {
@@ -125,7 +127,9 @@ module GpuParticles {
 		private updateEmiter (clockDeltaData: App.ClockDeltaData, emitter: Emitter): void {
 			if (!emitter.visible) return;
 
-			for (var x = 0; x < emitter.opt.spawnRate * clockDeltaData.delta; x++) {
+			let toEmitCount = Math.min(emitter.getParticleCount() / 5,
+			                           emitter.getEmitterOptions().spawnRate * clockDeltaData.delta);
+			for (var x = 0; x < toEmitCount; x++) {
 				emitter.spawnParticle(clockDeltaData);
 			}
 

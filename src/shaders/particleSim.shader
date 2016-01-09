@@ -66,7 +66,7 @@ void main() {
     } else {
       gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
       vColor = mix(colorStart, colorEnd, P_LIFE_MOMENT);
-      gl_PointSize = uScale * mix(P_SCALE_ST, P_SCALE_END, P_LIFE_MOMENT) * 255.0; // magic number
+      gl_PointSize = uScale * mix(P_SCALE_ST, P_SCALE_END, P_LIFE_MOMENT) * 64.0; // magic number
     }
 }
 

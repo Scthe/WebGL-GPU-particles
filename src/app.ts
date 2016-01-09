@@ -103,6 +103,10 @@ module App {
 			return this.camera;
 		}
 
+		getParticleSystem(): GpuParticles.GpuParticles{
+			return this.particleSystem;
+		}
+
 		// getControls(){
 			// return this.controls;
 		// }

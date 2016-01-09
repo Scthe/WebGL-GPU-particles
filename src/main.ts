@@ -1,11 +1,12 @@
 /// <reference path='../typings/tsd.d.ts'/>
 /// <reference path='./app.ts'/>
 /// <reference path='./config.ts'/>
+/// <reference path='./ui.ts'/>
 /// <reference path="./utils/shaderLoader.ts"/>
 
 'use strict';
 
-var renderer, scene, app;
+var renderer, scene, app, ui;
 
 
 function init() {
@@ -14,24 +15,23 @@ function init() {
 	renderer = new THREE.WebGLRenderer();
 	scene = new THREE.Scene();
 	app = new App.App();
+	ui = new App.UI();
 
-	// renderer.setClearColor(config.background);
+	renderer.setClearColor(config.background);
 	renderer.setSize(config.width(), config.height());
 
 	var sceneLoadedPromise = app.init(scene);
 
-	// var ui = new UI();
-	// sceneLoadedPromise.then(() => {
-		// ui.init(renderer, scene, app);
-	// });
+	sceneLoadedPromise.then(() => {
+		console.log('scene loaded');
+		ui.init(renderer, scene, app);
+	}).done();
 
 	document.body.appendChild(renderer.domElement);
 
 	window.addEventListener('resize', onResize);
 
-	sceneLoadedPromise.then(() => {
-		animloop();
-	});
+	animloop();
 }
 
 

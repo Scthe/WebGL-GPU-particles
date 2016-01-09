@@ -23,8 +23,24 @@ module GpuParticles {
     }
 
     startValue(): T { return this._startValue; }
-    endValue()  : T { return this.useStartValueAsEndValue() ? this._startValue : this._endValue; }
+
+    endValue()  : T {
+      if (this._endValue === undefined && this.useStartValueAsEndValue()){
+        this._endValue = <T><any>this.cloneStartvalue();
+      }
+      return this._endValue;
+    }
+
     useStartValueAsEndValue(){ return this._endValue === undefined; }
+
+    private cloneStartvalue(){
+      let baseVal: any = this.startValue();
+      return (typeof baseVal === 'number')      ? baseVal :
+             (baseVal instanceof THREE.Color)   ? new THREE.Color(baseVal) :
+             (baseVal instanceof THREE.Vector3) ? new THREE.Vector3(baseVal) :
+             (baseVal instanceof THREE.Vector2) ? new THREE.Vector2(baseVal) :
+             undefined;
+    }
   }
 
   export class ValueWithDistribution<T>{
@@ -72,6 +88,15 @@ module GpuParticles {
     return _.bind(reader.read, reader);
   }
 
+  export function getValueTypeName(baseVal: any, isColor?: boolean): string {
+    return (isColor && isOfTypeParticleColor(baseVal)) ? 'Color' :
+           (typeof baseVal === 'number')      ? 'number' :
+           (baseVal instanceof THREE.Vector3) ? 'Vector3' :
+           (baseVal instanceof THREE.Vector2) ? 'Vector2' :
+           (baseVal instanceof ValueWithDistribution) ? 'ValueWithDistribution' :
+           (baseVal instanceof StartEndRange) ? 'StartEndRange' : '';
+  }
+
 
   class ValueReader {
 
@@ -111,11 +136,7 @@ module GpuParticles {
             StartEndRange: this.getValueFromDistributionSER,
             Color:   this.getValueFromDistributionColor,
           },
-          handlerForThisCase: string = (opt.isColor && isOfTypeParticleColor(baseVal)) ? 'Color' :
-                                       (typeof baseVal === 'number') ? 'number' :
-                                       (baseVal instanceof THREE.Vector3) ? 'Vector3' :
-                                       (baseVal instanceof THREE.Vector2) ? 'Vector2' :
-                                       (baseVal instanceof StartEndRange) ? 'StartEndRange' : '';
+          handlerForThisCase: string = getValueTypeName(baseVal, opt.isColor);
 
       if (handlerForThisCase.length > 0 && handlers.hasOwnProperty(handlerForThisCase)){
         return handlers[handlerForThisCase].call(this, opt, distr);
