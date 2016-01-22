@@ -2,36 +2,45 @@
 
 module GpuParticles {
 
-  export type ParticleColor = THREE.Color | number;
-  let isOfTypeParticleColor = (val: any) => { return (typeof val === 'number') || (val instanceof THREE.Color); } // TS does not do this for us
+///////////////////////////////
+/// ValueTypes2
+///////////////////////////////
 
-  interface ValueGetter {
-      (n: number): any;
+  export enum ValueTypes2 {
+    NUMBER, VECTOR2, VECTOR3, COLOR
   }
 
-  ///
-  /// Types classes
-  ///
+  function getValueTypeName(vv: any): string {
+    return (typeof vv === 'number')      ? ValueTypes2[ValueTypes2.NUMBER] :
+           (vv instanceof THREE.Color)   ? ValueTypes2[ValueTypes2.COLOR] :
+           (vv instanceof THREE.Vector3) ? ValueTypes2[ValueTypes2.VECTOR3] :
+           (vv instanceof THREE.Vector2) ? ValueTypes2[ValueTypes2.VECTOR2] :
+           undefined;
+  }
 
-  export class StartEndRange<T> {
-    _startValue: T;
-    _endValue: T;
+///////////////////////////////
+/// StartEndValues
+///////////////////////////////
 
-    constructor(startValue: T, endValue?: T){
-      this._startValue = startValue;
-      this._endValue = endValue;
+  export class StartEndValues<R> {
+    start: R;
+    end: R;
+
+    constructor(start: R, end?: R){
+      this.start = start;
+      this.end = end !== undefined ? end : start;
     }
 
-    startValue(): T { return this._startValue; }
+    startValue(): R { return this.start; }
 
-    endValue()  : T {
-      if (this._endValue === undefined && this.useStartValueAsEndValue()){
-        this._endValue = <T><any>this.cloneStartvalue();
+    endValue(): R {
+      if (this.end === undefined && this.useStartValueAsEndValue()){
+        this.end = <R><any>this.cloneStartvalue();
       }
-      return this._endValue;
+      return this.end;
     }
 
-    useStartValueAsEndValue(){ return this._endValue === undefined; }
+    private useStartValueAsEndValue(){ return this.end === undefined; }
 
     private cloneStartvalue(){
       let baseVal: any = this.startValue();
@@ -41,164 +50,251 @@ module GpuParticles {
              (baseVal instanceof THREE.Vector2) ? new THREE.Vector2(baseVal) :
              undefined;
     }
+
+    static StartLens<U>(v: StartEndValues<U>): U { return v.start; }
+    static EndLens  <U>(v: StartEndValues<U>): U { return v.end; }
   }
+  type StartEndLens<U> = (v: StartEndValues<U>) => U;
 
-  export class ValueWithDistribution<T>{
-    value: T;
-    distribution: number;
+///////////////////////////////
+/// ValueReader2Opt
+///////////////////////////////
 
-    constructor(value: T, distribution?: number){
-      this.value = value;
-      this.distribution = distribution !== undefined ? distribution : 0.0;
-    }
-  }
-
-  ///
-  /// Values providers
-  ///
-
-  interface ValueReaderOpt {
-    ifFunctionThenArgs?: any[];
-    /** even though we have separate ParticleColor type, we need to handle this case if we were provided number */
-    isColor?: boolean;
-    isRange?: boolean;
+  interface ValueReader2Opt {
     clampMin?: number;
     clampMax?: number;
     mul?: number;
     isInt?: boolean;
   }
-  let defaultValueReaderOpt: ValueReaderOpt = {
-    ifFunctionThenArgs: [],
-    isColor: false,
-    isRange: false,
-    isInt: false
+  let colorValueReader2Opt = {
+    mul: 255,
+    clampMin: 0,
+    clampMax: 255,
+    isInt: true
+  };
+
+///////////////////////////////
+/// ValueConverter
+///////////////////////////////
+
+  type NumberProvider = (v: number) => number;
+
+  interface ValueConverter<R>{
+    fromNumber(value: number): R;
+
+    getValue(numberProvider: NumberProvider, v: R): R;
   }
 
-  interface Vec extends THREE.Vector {
-    toArray(xyz?: number[], offset?: number): number[];
-    fromArray(xyz: number[], offset?: number): THREE.Vector;
+  let valueConverters: ValueConverter<any>[] = [];
+
+  function declareValueConverter<U>(valueType: ValueTypes2, converter: ValueConverter<U>){
+    valueConverters[valueType] = converter;
   }
 
-  export function valueReaderProvider(randFunction: Function): Function {
-    let rand2 = () => { // from [0..1] to [-1..1]
-      return randFunction() * 2 - 1;
-    },
-    reader = new ValueReader(rand2);
-
-    return _.bind(reader.read, reader);
+  function getValueConverter<U>(type: ValueTypes2): ValueConverter<U>{
+    let converter = valueConverters[type];
+    if (converter === undefined){
+      throw new Error(`No value converter for ${ValueTypes2[type]}(${type})`);
+    }
+    return converter;
   }
 
-  export function getValueTypeName(baseVal: any, isColor?: boolean): string {
-    return (isColor && isOfTypeParticleColor(baseVal)) ? 'Color' :
-           (typeof baseVal === 'number')      ? 'number' :
-           (baseVal instanceof THREE.Vector3) ? 'Vector3' :
-           (baseVal instanceof THREE.Vector2) ? 'Vector2' :
-           (baseVal instanceof ValueWithDistribution) ? 'ValueWithDistribution' :
-           (baseVal instanceof StartEndRange) ? 'StartEndRange' : '';
+  ///////////////////////////////
+  /// ValueLens
+  ///////////////////////////////
+  export interface ValueLens<T> {
+			value?: number,
+			range?: {
+				start: number,
+				end: number,
+			},
+			distribution?: number
   }
 
+///////////////////////////////
+/// ValueFactory2
+///////////////////////////////
 
-  class ValueReader {
+  type RawValueFactory<U> = (...any) => RawValue<U>;
 
-    randFunction: Function;
+  type RawValue<R> = R | number | StartEndValues<R> | StartEndValues<number>;
 
-    constructor(randFunction: Function) {
-      this.randFunction = randFunction;
+  type Value<R> = RawValue<R> | RawValueFactory<R>;
+
+  export class ValueFactory2<T> {
+
+    private rand: () => number;
+    private type: ValueTypes2;
+    private opt: ValueReader2Opt;
+    private baseValue: Value<T>;
+    private distribution: number;
+
+
+    constructor(type: ValueTypes2, opt?: ValueReader2Opt){
+      this.type = type;
+      this.setOptions(opt);
+
+      this.rand =  () => { // from [0..1] to [-1..1]
+        return Math.random() * 2 - 1;
+      };
     }
 
-    read<T>(rawValue: any, opt?: ValueReaderOpt): T {
+    private setOptions(opt?: ValueReader2Opt){
       opt = opt || {};
-      let opt2 = _.extend({}, defaultValueReaderOpt, opt);
 
-      if (_.isFunction(rawValue)){
-        // get value to further process
-        let valOfThis = opt2.ifFunctionThenArgs.shift() || null,
-            tmp: T = rawValue.apply(valOfThis, opt2.ifFunctionThenArgs);
-        return <T><any>this.read(tmp, opt2);
+      if (this.type === ValueTypes2.COLOR){
+        this.opt = colorValueReader2Opt;
       } else {
-
-        // wrap in VWD with no distribution - this will effectively make it const and allow for unified processing
-        let vAsVWD = rawValue instanceof ValueWithDistribution ? rawValue : new ValueWithDistribution(rawValue, 0.0),
-            vv2 = this.getValueFromDistribution(opt2, vAsVWD);
-        if (opt2.isRange && !(vv2 instanceof StartEndRange)){
-          vv2 = new StartEndRange(vv2);
-        }
-        return <T><any>vv2;
+        this.opt = opt;
       }
     }
 
-    private getValueFromDistribution<T>(opt: ValueReaderOpt, distr: ValueWithDistribution<T>): T {
-      let baseVal: T = distr.value,
-          handlers = { // we are going to switch on type of T
-            number:  this.getValueFromDistributionNum,
-            Vector2: this.getValueFromDistributionV,
-            Vector3: this.getValueFromDistributionV,
-            StartEndRange: this.getValueFromDistributionSER,
-            Color:   this.getValueFromDistributionColor,
-          },
-          handlerForThisCase: string = getValueTypeName(baseVal, opt.isColor);
+    getValue(...ifFunctionThenArgs: any[]): T {
+      return this.__getValue(StartEndValues.StartLens, ifFunctionThenArgs);
+    }
 
-      if (handlerForThisCase.length > 0 && handlers.hasOwnProperty(handlerForThisCase)){
-        return handlers[handlerForThisCase].call(this, opt, distr);
-      } else {
-        throw "Could not randomize particle parameter: " + JSON.stringify(baseVal);
+    getStartEndValues(...ifFunctionThenArgs: any[]): StartEndValues<T> {
+      return new StartEndValues<T>(
+        this.__getValue(StartEndValues.StartLens, addNewLastArg(ifFunctionThenArgs, 'start')),
+        this.__getValue(StartEndValues.EndLens,   addNewLastArg(ifFunctionThenArgs, 'end'))
+      );
+
+      function addNewLastArg(args: any[], arg: any){
+        return args.splice(-1, 0, arg)
       }
     }
 
-    // for some reason we cannot use polymorphism on generics argument..
-    // I don't think even Java allows for that (type erasure)
-    // writting everything by hand:
+    private __getValue(seLens: StartEndLens<T>, ifFunctionThenArgs: any[]): T {
+      let baseValueOrNumber: T | number = this.getBaseValue(seLens, ifFunctionThenArgs),
+          converter: ValueConverter<T> = getValueConverter<T>(this.type),
+          baseValue: T = (typeof baseValueOrNumber === 'number') ?
+                           converter.fromNumber(baseValueOrNumber) :
+                           baseValueOrNumber;
 
-    private getValueFromDistributionImpl(opt: ValueReaderOpt, distribution: number, value: number): number {
-      let v = value + this.randFunction() * (distribution / 2); // half distribution since rand operates on [-1, 1] range - twice the normal
-      if (opt.mul      !== undefined){ v *= opt.mul; }
-      if (opt.clampMin !== undefined){ v = Math.max(v, opt.clampMin); }
-      if (opt.clampMax !== undefined){ v = Math.min(v, opt.clampMax); }
-      if (opt.isInt                 ){ v = Math.floor(v); }
+          return converter.getValue(_.bind(this.getValueAsNumber, this), baseValue);
+    }
+
+    private getBaseValue(seLens: StartEndLens<T>, ifFunctionThenArgs: any[]): T | number {
+      let value: RawValue<T>;
+
+      if (_.isFunction(this.baseValue)){
+        let valOfThis = ifFunctionThenArgs.shift() || window;
+        value = <any>(<any>this.baseValue).apply(valOfThis, ifFunctionThenArgs);
+      } else {
+        value = <any>this.baseValue;
+      }
+
+      if (value === undefined){
+        throw new Error('Could not produce value, either baseValue or baseValueFromFunction must be defined');
+      }
+
+      return (value instanceof StartEndValues) ? seLens(<any>value) : <any>value;
+    }
+
+    private getValueAsNumber(baseValue: number): number {
+      let v = baseValue + this.rand() * (this.distribution / 2); // half distribution since rand operates on [-1, 1] range - twice the normal
+
+      if (this.opt.mul      !== undefined){ v *= this.opt.mul; }
+      if (this.opt.clampMin !== undefined){ v = Math.max(v, this.opt.clampMin); }
+      if (this.opt.clampMax !== undefined){ v = Math.min(v, this.opt.clampMax); }
+      if (this.opt.isInt                 ){ v = Math.floor(v); }
+
       return v;
     }
 
-    private getValueFromDistributionNum(opt: ValueReaderOpt, distr: ValueWithDistribution<number>): number{
-      return this.getValueFromDistributionImpl(opt, distr.distribution, distr.value);
-    }
-
-    private getValueFromDistributionV(opt: ValueReaderOpt, distr: ValueWithDistribution<Vec>){
-      let arr =  distr.value.toArray();
-      arr = _.map(arr, (v: number) => {
-        return this.getValueFromDistributionImpl(opt, distr.distribution, v);
-      });
-      return (<Vec>distr.value.clone()).fromArray(arr);
-    }
-
-    private getValueFromDistributionSER<T>(opt: ValueReaderOpt, distr: ValueWithDistribution<StartEndRange<T>>): StartEndRange<T> {
-      let baseVal: StartEndRange<T> = distr.value,
-          startVWD = new ValueWithDistribution(baseVal.startValue(), distr.distribution),
-          endVWD   = new ValueWithDistribution(baseVal.endValue(), distr.distribution),
-          startVal: T, endVal: T;
-
-      startVal = this.getValueFromDistribution<T>(opt, startVWD);
-      if (baseVal.useStartValueAsEndValue()){
-        endVal = startVal;
-      } else {
-        endVal = this.getValueFromDistribution<T>(opt, endVWD);
+    /*
+    setBaseValue(value: RawValue<T> | RawValueFactory<T>){
+      if (value !== undefined){
+        this.baseValue = value;
       }
+    }
+    */
+   /*
+    getValueLens(): ValueLens<T>{
+      let self = this,
+          lens = {
+            set value(value: Value<T>){
+              self.baseValue = value;
+            },
+            set distribution(value: number){
+              self.distribution = value;
+            }
+          },
+          range = {
+            set start(value: number){
+              // self.distribution = value;
+            },
+            set end(value: number){
+              // self.distribution = value;
+            }
+          };
 
-      return new StartEndRange(startVal, endVal);
+      Object.defineProperty(lens, 'range', {value: range })
+
+      return lens;
+   }
+   */
+
+    setBaseValue(val: Value<T>){
+      this.baseValue = val;
     }
 
-    private getValueFromDistributionColor<ParticleColor>(opt: ValueReaderOpt, distr: ValueWithDistribution<ParticleColor>): ParticleColor {
-      let opt2 = _.extend({}, opt, {isColor: false});
-      opt2.mul = 255;
-      opt2.clampMin = 0;
-      opt2.clampMax = 255;
-      opt2.isInt = true;
-      // we will handle color as vector
-      let asColor: THREE.Color = (new THREE.Color()).set(<any>distr.value), // TS, WTF?
-          vec = (new THREE.Vector3()).fromArray(asColor.toArray()); let
-          newValues = this.getValueFromDistribution(opt2, new ValueWithDistribution(vec, distr.distribution));
-      return <ParticleColor><any> asColor.fromArray(newValues.toArray()); // TS, WTF?
+    setDistribution(distr: number){
+      this.distribution= distr;
+    }
+
+    getType(){
+      return this.type;
     }
 
   }
+
+
+///////////////////////////////
+///
+///////////////////////////////
+
+  class NumberValueConverter implements ValueConverter<number> {
+    fromNumber(value: number){ return value; }
+
+    getValue(numberProvider: NumberProvider, value: number): number {
+      return numberProvider(value);
+    }
+  }
+  declareValueConverter(ValueTypes2.NUMBER, new NumberValueConverter());
+
+  class Vector3ValueConverter implements ValueConverter<THREE.Vector3> {
+    fromNumber(value: number){ return new THREE.Vector3(value, value, value); }
+
+    getValue(numberProvider: NumberProvider, value: THREE.Vector3): THREE.Vector3 {
+      return new THREE.Vector3(numberProvider(value.x),
+                               numberProvider(value.y),
+                               numberProvider(value.z));
+    }
+  }
+  declareValueConverter(ValueTypes2.VECTOR3, new Vector3ValueConverter());
+
+  class Vector2ValueConverter implements ValueConverter<THREE.Vector2> {
+    fromNumber(value: number){ return new THREE.Vector2(value, value); }
+
+    getValue(numberProvider: NumberProvider, value: THREE.Vector2): THREE.Vector2 {
+      return new THREE.Vector2(numberProvider(value.x),
+                               numberProvider(value.y));
+    }
+  }
+  declareValueConverter(ValueTypes2.VECTOR2, new Vector2ValueConverter());
+
+  class ColorValueConverter implements ValueConverter<THREE.Color> {
+    fromNumber(value: number){ return (new THREE.Color()).set(value); }
+
+    getValue(numberProvider: NumberProvider, value: THREE.Color): THREE.Color {
+      let valueAsVec: THREE.Vector3 = new THREE.Vector3(value.r, value.g, value.b),
+          vec3Converter = getValueConverter<THREE.Vector3>(ValueTypes2.VECTOR3),
+          newValues = vec3Converter.getValue(numberProvider, valueAsVec);
+
+      return (new THREE.Color()).fromArray(newValues.toArray());
+    }
+  }
+  declareValueConverter(ValueTypes2.COLOR, new ColorValueConverter());
 
 }

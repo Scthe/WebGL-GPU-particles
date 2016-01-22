@@ -7,17 +7,24 @@
         "module": "amd",
         "noEmitOnError": true
     },
+    "filesGlob": [
+        "./src/**/*.ts"
+    ],
     "files": [
-        "src/utils/http.ts",
-        "src/utils/shaderLoader.ts",
-        "src/utils/utils.ts",
-        "src/particles/gpuParticles.ts",
-        "src/particles/emitterOptions.ts",
-        "src/particles/valueTypes.ts",
-        "src/app.ts",
-        "src/config.ts",
-        "src/clock.ts",
-        "src/ui.ts",
-        "src/main.ts"
-    ]
+        "./src/app.ts",
+        "./src/clock.ts",
+        "./src/config.ts",
+        "./src/main.ts",
+        "./src/particles/emitter.ts",
+        "./src/particles/emitterOptions.ts",
+        "./src/particles/gpuParticles.ts",
+        "./src/particles/valueTypes.ts",
+        "./src/ui.ts",
+        "./src/utils/http.ts",
+        "./src/utils/shaderLoader.ts",
+        "./src/utils/utils.ts"
+    ],
+    "atom": {
+        "rewriteTsconfig": true
+    }
 }

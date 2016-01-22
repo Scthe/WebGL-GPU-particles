@@ -45,7 +45,8 @@ module GpuParticles {
 				count: 0
 			};
 
-			this.updateEmitterOptions(opt, true);
+			// this.updateEmitterOptions(opt, true);
+			this.updateEmitterOptions(opt);
 
 			this.cleanBuffers();
 			this.initBuffers();
@@ -103,42 +104,44 @@ module GpuParticles {
 		 * new particle's data is found, some old one is removed
 		 */
 		spawnParticle(clockDeltaData: App.ClockDeltaData) {
-			let rand = Math.random,
-					valueReader = valueReaderProvider(rand);
+			let o = this.opt,
+					__pack = Utils.encodeUint8VectorAsFloat,
+					emitterPosition: THREE.Vector3 = _.isFunction(o.emitterPosition)?
+					    (<any>o.emitterPosition)(this.opt, clockDeltaData)
+							: o.emitterPosition;
 
-			let i = this.particleIterator; // next free slot
-
-			// get all values during spawn time
-			let emitterPosition: THREE.Vector3   = valueReader(this.opt.emitterPosition, {ifFunctionThenArgs: [this.opt, clockDeltaData]} ),
-			    pos            : THREE.Vector3   = valueReader(this.opt.initialPosition).add(emitterPosition),
-			    vel            : THREE.Vector3   = valueReader(this.opt.initialVelocity, {min: -127, max: 127}), // TODO what if initVel.value=[400,0,0]
-			    col: StartEndRange<THREE.Color>  = valueReader(this.opt.colorOverLife,   {isColor: true, isRange: true}),
-			    opacity: StartEndRange<number>   = valueReader(this.opt.opacityOverLife,    {isRange: true, isInt: true, mul: 255, min: 0, max: 255}),
-			    scale  : StartEndRange<number>   = valueReader(this.opt.sizeOverLife,       {isRange: true, isInt: true, mul: 255, min: 0, max: 255}),
-			    turbulence: StartEndRange<number>= valueReader(this.opt.turbulenceOverLife, {isRange: true, isInt: true, mul: 255, min: 0, max: 255}),
+			let position       : THREE.Vector3 = o.initialPosition.getValue().add(emitterPosition),
+			    velocity       : THREE.Vector3 = o.initialVelocity.getValue(),
+					lifetime       : number        = o.lifetime.getValue(),
+					col       : StartEndValues<THREE.Color> = o.colorOverLife.getStartEndValues(),
+			    opacity   : StartEndValues<number>      = o.opacityOverLife.getStartEndValues(),
+			    scale     : StartEndValues<number>      = o.sizeOverLife.getStartEndValues(),
+			    turbulence: StartEndValues<number>      = o.turbulenceOverLife.getStartEndValues(),
 			    colSt = col.startValue(), colEnd = col.endValue();
 
-
       let buf1AttrValues = [
-            pos.x, pos.y, pos.z,
-            Utils.encodeUint8VectorAsFloat(vel.x + 127, vel.y + 127, vel.z + 127, 0.0)
+            position.x,
+						position.y,
+						position.z,
+            __pack(velocity.x + 127, velocity.y + 127, velocity.z + 127, 0.0)
           ],
           buf2AttrValues = [
-            Utils.encodeUint8VectorAsFloat(colSt.r,  colSt.g,  colSt.b,  opacity.startValue()),
-            Utils.encodeUint8VectorAsFloat(colEnd.r, colEnd.g, colEnd.b, opacity.endValue())
+            __pack(colSt.r,  colSt.g,  colSt.b,  opacity.startValue()),
+            __pack(colEnd.r, colEnd.g, colEnd.b, opacity.endValue())
           ],
 				  buf3AttrValues = [
 					  clockDeltaData.timeFromSimulationStart,
-					  valueReader(this.opt.lifetime),
-					  Utils.encodeUint8VectorAsFloat(scale.startValue(),      scale.endValue(),
-                                           turbulence.startValue(), turbulence.endValue())
+					  lifetime,
+					  __pack(scale.startValue(), scale.endValue(), turbulence.startValue(), turbulence.endValue())
 				  ];
+      Utils.copyArrInto(this.posStartAndTimeAttr.array, this.particleIterator*4, buf1AttrValues);
+      Utils.copyArrInto(this.particleColorAttr.array,   this.particleIterator*2, buf2AttrValues);
+			Utils.copyArrInto(this.miscDataAttr.array,        this.particleIterator*3, buf3AttrValues);
 
-      Utils.copyArrInto(this.posStartAndTimeAttr.array, i*4, buf1AttrValues);
-      Utils.copyArrInto(this.particleColorAttr.array,   i*2, buf2AttrValues);
-			Utils.copyArrInto(this.miscDataAttr.array,        i*3, buf3AttrValues);
+			this.markBuffersAsDirty();
+		}
 
-
+		private markBuffersAsDirty(){
 			if (this.dirtyStatus.offset === 0) {
 				this.dirtyStatus.offset = this.getParticleCount();
 			}
@@ -195,16 +198,19 @@ module GpuParticles {
 			return this.opt;
 		}
 
-		private updateEmitterOptions(updateSet: EmitterOptions, discardOld?: boolean): void {
-			this.opt = (this.opt !== undefined) ? // values will be discarded, we only want the object instance
-									this.opt : this.getParticleSystem().defaultSpawnOptions();
-
+		private updateEmitterOptions(updateSet: any/*, discardOld?: boolean*/): void {
+			/*
+			// values will be discarded, we only want the object instance
+			this.opt = this.opt || this.getParticleSystem().defaultSpawnOptions();
 
 			let prevOpt = discardOld ? this.getParticleSystem().defaultSpawnOptions() : this.opt,
 			    newOpt = _.extend({}, prevOpt, updateSet);
-			newOpt = unifyInternalRepresentation(newOpt);
 
-			_.extend(this.opt, newOpt); // copy to the one and only
+			_.extend(this.opt, newOpt);
+			*/
+			let cfg = _.extend({}, this.getParticleSystem().defaultSpawnOptions(), updateSet);
+
+			this.opt = emitterOptionsFromConfig(cfg);
 
 			this.visible = this.opt.visible;
 		}

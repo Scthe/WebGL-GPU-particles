@@ -1,18 +1,21 @@
 /// <reference path='../typings/tsd.d.ts'/>
 /// <reference path='./config.ts'/>
 /// <reference path="./particles/emitterOptions.ts"/>
+/// <reference path="./particles/valueTypes.ts"/>
 
 var dat: any;
 
 module App {
 
-	import VWD = GpuParticles.ValueWithDistribution;
-	import SER = GpuParticles.StartEndRange;
-	import ParticleColor = GpuParticles.ParticleColor;
+	// import VWD = GpuParticles.ValueWithDistribution;
+	// import SER = GpuParticles.StartEndRange;
+	// import ParticleColor = GpuParticles.ParticleColor;
+	import ValueTypes2 = GpuParticles.ValueTypes2;
+	import ValueFactory2 = GpuParticles.ValueFactory2;
 	import EmitterOptions = GpuParticles.EmitterOptions;
 	import Emitter = GpuParticles.Emitter;
 
-	type VWD_SER_number = ValueWithDistribution<StartEndRange<number>>;
+	// type VWD_SER_number = ValueWithDistribution<StartEndRange<number>>;
 
 	export class UI {
 
@@ -48,12 +51,14 @@ module App {
 			// UI.addVectorCtrls(folder, '', emitterOpt.emitterPosition, 500); // TODO fix
 
 			// lifetime
-			UI.assertType(emitterOpt.lifetime, 'ValueWithDistribution');
-			let ltVWD: VWD<number> = <any>emitterOpt.lifetime;
-			UI.assertType(ltVWD.value, 'number');
-			folder.add(ltVWD, 'value', 0.5, 7).name('lifetime');
-			folder.add(ltVWD, 'distribution', 0, 3).name('lifetime rand');
+			// UI.assertType(emitterOpt.lifetime, 'ValueWithDistribution');
+			// let ltVWD: VWD<number> = <any>emitterOpt.lifetime;
+			// UI.assertType(ltVWD.value, 'number');
+			// folder.add(ltVWD, 'value', 0.5, 7).name('lifetime');
+			// folder.add(ltVWD, 'distribution', 0, 3).name('lifetime rand');
+			this.addControls(folder, 'lifetime', emitterOpt.lifetime, 0.5,7, 0,3);
 
+			/*
 			// initialPosition
 			innerFolder = folder.addFolder('Initial particle position');
 			UI.assertType(emitterOpt.initialPosition, 'ValueWithDistribution');
@@ -99,14 +104,27 @@ module App {
 			// opacityOverLife
 			innerFolder = folder.addFolder('opacity');
 			UI.addVWD_SER_number_Ctrls(innerFolder, '', emitterOpt.opacityOverLife);
+			*/
 		}
 
-		static assertType(val: any, type: string){
-			if (GpuParticles.getValueTypeName(val) !== type){
-				throw `Expected value of type ${type}, got ${JSON.stringify(val)}`;
+		private addControls<U>(gui: any, name: string, valueFactory: ValueFactory2<U>,
+			min: number, max: number,
+		  dmin: number, dmax: number){
+			let type = valueFactory.getType(),
+			    uiWidgetFactory = {};
+
+			uiWidgetFactory[ValueTypes2.NUMBER] = addNum;
+			uiWidgetFactory[ValueTypes2.VECTOR2] = noop;
+			uiWidgetFactory[ValueTypes2.VECTOR3] = noop;
+			uiWidgetFactory[ValueTypes2.COLOR] = noop;
+
+			function addNum(){
+				gui.add(valueFactory, 'baseValue', min, max).name(name);
+				gui.add(valueFactory, 'distribution', dmin, dmax).name(`${name} rand`);
 			}
+			function noop(){}
 		}
-
+/*
 		static addVectorCtrls(gui, name: string, pos: any, range: number){
 			let vv = new THREE.Vector3();
 			if (GpuParticles.getValueTypeName(pos) === 'Vector3'){
@@ -137,6 +155,7 @@ module App {
 			gui.add(vv.value, '_endValue',   0.0, 1.0).name(`${name} end`);
 			gui.add(vv, 'distribution',      0.0, 1.0).name(`${name} rand`);
 		}
+*/
 
 		/**
 		 * dat.gui and three does not interoperate nicely on colors

@@ -7,7 +7,7 @@ module GpuParticles {
 
 	type BufferAttr = THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
 
-	let defaultParticleSpawnOptions: EmitterOptions = {
+	let defaultParticleSpawnOptions: any = {
 		name: 'particle emitter',
 		visible: true,
 		count: 1000,
@@ -16,17 +16,13 @@ module GpuParticles {
 		emitterPosition: new THREE.Vector3(),
 
 		// per particle values
-		lifetime:                 new ValueWithDistribution(2.0, 0.5),
-		initialPosition:          new ValueWithDistribution(new THREE.Vector3(), 0.3),
-		// initialRotation: new ValueWithDistribution(new THREE.Vector3(), 0.3),
-		// rotationalVelocity: ValueWithDistribution<THREE.Vector3>,
-		initialVelocity:          new ValueWithDistribution(new THREE.Vector3(), 2),
-		turbulenceOverLife:       new ValueWithDistribution(new StartEndRange(127, 127), 0.0),
-		sizeOverLife:    new ValueWithDistribution(new StartEndRange(5.0, 20.0), 1.0),
-		// sizeBySpeed:     new ValueWithDistribution<THREE.Vector2>,
-		// constantAcceleration: new ValueWithDistribution<THREE.Vector3>,
-		colorOverLife:   new ValueWithDistribution(new StartEndRange(0xE65A46, 0x00FFFF), 0.1),
-		opacityOverLife: new StartEndRange(1.0, 0.0)
+		lifetime:                 {value: 0.2, distribution: 0.5},
+		initialPosition:          {value: 0.0, distribution: 0.5},
+		initialVelocity:          {value: 0.0, distribution: 2.0},
+		turbulenceOverLife:       {value: 127, distribution: 0.0},
+		sizeOverLife:    {range: {start: 5.0, end: 20.0}, distribution: 1.0},
+		colorOverLife:   {range: {start: 0xE65A46, end: 0x00FFFF}, distribution: 0.1},
+		opacityOverLife: {range: {start: 1.0, end: 0.0}}
 	};
 
 

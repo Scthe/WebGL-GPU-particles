@@ -5,30 +5,27 @@ module GpuParticles {
 
 	// https://docs.unrealengine.com/latest/INT/Engine/Rendering/ParticleSystems/Reference/index.html
 
-	// !!! TODO use fluent interfaces !!!
-	// f.e. baseType<number>(ValueType.NUMBER).canBeFunction().hasStartAndEndValues(),hasDistribution();
-
 	export interface EmitterOptions {
-		name: string;
-		visible: boolean;
-		count: number;
-		spawnRate: number;
+		name: string,
+		visible: boolean,
+		count: number,
+		spawnRate: number,
 		// emitterRotation: THREE.Vector3;
-		emitterPosition: Function | THREE.Vector3;
+		emitterPosition: Function | THREE.Vector3,
 		// constantAcceleration: THREE.Vector3;
 
 		// per particle values
-		// TODO size by speed works per axis, giving pseudo motion blur
-		lifetime:             number | ValueWithDistribution<number>;
-		initialPosition:      THREE.Vector3 | ValueWithDistribution<THREE.Vector3>;
-		// initialRotation:      THREE.Vector3 | ValueWithDistribution<THREE.Vector3>;
-		// rotationalVelocity:   THREE.Vector3 | ValueWithDistribution<THREE.Vector3>;
-		initialVelocity:      THREE.Vector3 | ValueWithDistribution<THREE.Vector3>;
-		turbulenceOverLife:   number | StartEndRange<number> | ValueWithDistribution<StartEndRange<number>>;
-		sizeOverLife:         number | StartEndRange<number> | ValueWithDistribution<StartEndRange<number>>;
-		// sizeBySpeed:          THREE.Vector2 | ValueWithDistribution<THREE.Vector2>;
-		colorOverLife:        ParticleColor | StartEndRange<ParticleColor> | ValueWithDistribution<StartEndRange<ParticleColor>>;
-		opacityOverLife:      number | StartEndRange<number> | ValueWithDistribution<StartEndRange<number>>;
+		lifetime: ValueFactory2<number>,
+		initialPosition:    ValueFactory2<THREE.Vector3>,
+		// initialRotation:    ValueFactory2<THREE.Vector3>,
+		// rotationalVelocity: ValueFactory2<THREE.Vector3>,
+		initialVelocity:    ValueFactory2<THREE.Vector3>,
+		turbulenceOverLife: ValueFactory2<number>,
+		sizeOverLife:       ValueFactory2<number>,
+		// sizeBySpeed:        ValueFactory2<THREE.Vector2>, // TODO works per axis, giving pseudo motion blur
+		colorOverLife:      ValueFactory2<THREE.Color>,
+		opacityOverLife:    ValueFactory2<number>,
+
 		/*
 		cameraOffset: {
 			// see https://docs.unrealengine.com/latest/INT/Engine/Rendering/ParticleSystems/Reference/Modules/Camera/index.html
@@ -50,59 +47,45 @@ module GpuParticles {
 
 	}
 
-	export function unifyInternalRepresentation(opt: EmitterOptions): EmitterOptions {
-		opt.lifetime        = wrapInVWD(opt.lifetime);
-		opt.initialPosition = wrapInVWD(opt.initialPosition);
-		opt.initialVelocity = wrapInVWD(opt.initialVelocity);
-		opt.turbulenceOverLife = wrapInVWD_SER(opt.turbulenceOverLife);
-		opt.sizeOverLife       = wrapInVWD_SER(opt.sizeOverLife);
-		opt.colorOverLife      = unifyColorRepresentation(opt.colorOverLife);
-		opt.opacityOverLife    = wrapInVWD_SER(opt.opacityOverLife);
-		return opt;
-	}
+	// export interface EmitterConfig extends EmitterData<ValueLens>{}
 
-	function wrapInVWD(val: any): any{
-		return getValueTypeName(val) === 'ValueWithDistribution' ?
-		          val : new ValueWithDistribution(val);
-	}
+	// export interface EmitterOptions extends EmitterData<ValueFactory2>{}
 
-	function wrapInVWD_SER(val: any): any {
-		let type = getValueTypeName(val);
+	// export function emitterOptionsFromConfig(cfg: EmitterConfig): EmitterOptions {
+	export function emitterOptionsFromConfig(cfg: any): EmitterOptions {
+		var emitterOpt: EmitterOptions = { // TODO move to particle system?
+			name: cfg.name,
+			visible: cfg.visible,
+			count: cfg.count,
+			spawnRate: cfg.spawnRate,
+			emitterPosition: cfg.emitterPosition,
 
-		if (type === 'number'){
-			return new ValueWithDistribution(new StartEndRange(val));
-		} else if (type === 'Color'){
-			val = new THREE.Color(val);
-			return new ValueWithDistribution(new StartEndRange(val));
-		} else if (type === 'StartEndRange'){
-			return new ValueWithDistribution(val);
-		} else if (type === 'ValueWithDistribution'){
-			return val;
-		} else {
-			throw 'Error trying to unify config representation';
+			lifetime : new ValueFactory2<number>(ValueTypes2.NUMBER),
+			initialPosition    : new ValueFactory2<THREE.Vector3>(ValueTypes2.VECTOR3),
+			initialVelocity    : new ValueFactory2<THREE.Vector3>(ValueTypes2.VECTOR3, {clampMin: -127, clampMax: 127}), // TODO what if initVel.value=[400,0,]
+			turbulenceOverLife : new ValueFactory2<number>(ValueTypes2.NUMBER, {isInt: true, mul: 255, clampMin: 0, clampMax: 255}),
+			sizeOverLife       : new ValueFactory2<number>(ValueTypes2.NUMBER, {isInt: true, mul: 255, clampMin: 0, clampMax: 255}),
+			opacityOverLife    : new ValueFactory2<number>(ValueTypes2.NUMBER, {isInt: true, mul: 255, clampMin: 0, clampMax: 255}),
+			colorOverLife      : new ValueFactory2<THREE.Color>(ValueTypes2.COLOR),
 		}
+
+		let valueProperties = ['lifetime', 'initialPosition', 'initialVelocity', 'turbulenceOverLife', 'sizeOverLife', 'opacityOverLife', 'colorOverLife'];
+
+		_.each(valueProperties, (vpName) => {
+			let vCfg: ValueLens<any> = cfg[vpName],
+			    vf: ValueFactory2<any> = emitterOpt[vpName];
+			    // eLens = e[vpName].getValueLens();
+
+			// e[vpName].setBaseValue(); = vCfg.distribution || 0.0;
+			// e[vpName].distribution = vCfg.distribution || 0.0;
+			vf.setBaseValue(getValueFromValueLens(vCfg));
+			vf.setDistribution(vCfg.distribution || 0.0);
+		});
+
+		return emitterOpt;
 	}
 
-	function unifyColorRepresentation(val: any): ValueWithDistribution<StartEndRange<THREE.Color>> {
-		let type = getValueTypeName(val);
-		console.log(val)
-
-		if (type === 'number'){
-			return unifyColorRepresentation(new THREE.Color(val));
-		} else if (type === 'Color'){
-			val = new THREE.Color(val);
-			return new ValueWithDistribution(new StartEndRange(val));
-		} else if (type === 'StartEndRange'){
-			val._startValue = new THREE.Color(val.startValue());
-			val._endValue = new THREE.Color(val.endValue());
-			return new ValueWithDistribution(val);
-		} else if (type === 'ValueWithDistribution'){
-			let v = unifyColorRepresentation(val.value);
-			v.distribution = val.distribution;
-			return v;
-		} else {
-			throw 'Error trying to unify color representation';
-		}
+	function getValueFromValueLens(vl: ValueLens<any>): any{
+		return (vl.range !== undefined)? new StartEndValues(vl.range.start, vl.range.end) : vl.value;
 	}
-
 }

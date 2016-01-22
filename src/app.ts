@@ -22,7 +22,6 @@ module App {
 			// this.controls = new THREE.OrbitControls(this.camera);
 
 			this.camera = this.createCamera(config.camera, 'camera');
-			var lights = this.createLights(config.lights);
 			var auxObjects = this.createAuxObjects();
 
 			this.particleSystem = new GpuParticles.GpuParticles();
@@ -33,7 +32,6 @@ module App {
 			};
 			scene.add(this.camera);
 			scene.add(this.particleSystem);
-			sceneAddObjects(lights);
 			sceneAddObjects(auxObjects);
 
 			if (config.fog.enabled){
@@ -54,28 +52,6 @@ module App {
 			camera.lookAt(cameraOpt.lookAt);
 			camera.position.set(cameraOpt.position.x, cameraOpt.position.y, cameraOpt.position.z);
 			return camera;
-		}
-
-		private createLights(lightCfg): Array<THREE.PointLight> {
-			var lightsArr = [],
-					createLight = (lCfg) => {
-						var pointLight = new THREE.PointLight(lCfg.color);
-						pointLight.name = lCfg.name;
-						pointLight.position.set(lCfg.position.x, lCfg.position.y, lCfg.position.z);
-
-						var props = ['intensity', 'distance', 'decay'];
-						_.each(props, p => {
-							if (lCfg.hasOwnProperty(p)){
-								pointLight[p] = lCfg[p];
-							}
-						});
-
-						lightsArr.push(pointLight);
-					};
-
-			_.each(lightCfg, createLight);
-
-			return lightsArr;
 		}
 
 		private createAuxObjects(): Array<THREE.Object3D>{
