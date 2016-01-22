@@ -2,6 +2,7 @@
 /// <reference path='../config.ts'/>
 /// <reference path='./emitter.ts'/>
 /// <reference path='../clock.ts'/>
+/// <reference path="./valueTypes.ts"/>
 
 module GpuParticles {
 
@@ -16,13 +17,13 @@ module GpuParticles {
 		emitterPosition: new THREE.Vector3(),
 
 		// per particle values
-		lifetime:                 {value: 0.2, distribution: 0.5},
-		initialPosition:          {value: 0.0, distribution: 0.5},
-		initialVelocity:          {value: 0.0, distribution: 2.0},
-		turbulenceOverLife:       {value: 127, distribution: 0.0},
-		sizeOverLife:    {range: {start: 5.0, end: 20.0}, distribution: 1.0},
-		colorOverLife:   {range: {start: 0xE65A46, end: 0x00FFFF}, distribution: 0.1},
-		opacityOverLife: {range: {start: 1.0, end: 0.0}}
+		lifetime:                 new ValueConfig(0.2).distribution(0.5),
+		initialPosition:          new ValueConfig(0.0).distribution(0.5),
+		initialVelocity:          new ValueConfig(0.0).distribution(2.0),
+		turbulenceOverLife:       new ValueConfig(127).distribution(0.0),
+		sizeOverLife:    new ValueConfig(5.0, 20.0).distribution(1.0),
+		colorOverLife:   new ValueConfig(0xE65A46, 0x00FFFF).distribution(0.1),
+		opacityOverLife: new ValueConfig(1.0, 0.0)
 	};
 
 

@@ -2,7 +2,7 @@
 /// <reference path="./particles/emitterOptions.ts"/>
 /// <reference path="./particles/valueTypes.ts"/>
 
-// import ValueWithDistribution = GpuParticles.ValueWithDistribution;
+import ValueConfig = GpuParticles.ValueConfig;
 // import StartEndRange = GpuParticles.StartEndRange;
 
 const config = {
@@ -33,10 +33,10 @@ const config = {
 				count: 1000,
 				spawnRate: 100,
 				// sizeOverLife: new ValueWithDistribution(new StartEndRange(0.12, 0.93), 0.5),
-				sizeOverLife: {range: {start: 0.2, end: 1.0}},
-				initialVelocity: {value: 0.0, distribution: 30.0}, // [0..255]
-				turbulenceOverLife: {range: {start: 0.0, end: 1.0}, distribution: 0.0}, // [0..1]
-				opacityOverLife: {range: {start: 1.0, end: 0.3}},
+				sizeOverLife: new ValueConfig(0.2, 1.0),
+				initialVelocity: new ValueConfig(0.0).distribution(30), // [0..255]
+				turbulenceOverLife: new ValueConfig(0.0, 1.0), // [0..1]
+				opacityOverLife:  new ValueConfig(1.0, 0.3),
 
 				horizontalSpeed: 1.5, // used for elipsis
 				verticalSpeed:  1.33, // used for elipsis

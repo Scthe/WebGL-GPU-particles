@@ -45,7 +45,6 @@ module GpuParticles {
 				count: 0
 			};
 
-			// this.updateEmitterOptions(opt, true);
 			this.updateEmitterOptions(opt);
 
 			this.cleanBuffers();
@@ -198,16 +197,7 @@ module GpuParticles {
 			return this.opt;
 		}
 
-		private updateEmitterOptions(updateSet: any/*, discardOld?: boolean*/): void {
-			/*
-			// values will be discarded, we only want the object instance
-			this.opt = this.opt || this.getParticleSystem().defaultSpawnOptions();
-
-			let prevOpt = discardOld ? this.getParticleSystem().defaultSpawnOptions() : this.opt,
-			    newOpt = _.extend({}, prevOpt, updateSet);
-
-			_.extend(this.opt, newOpt);
-			*/
+		private updateEmitterOptions(updateSet: any): void {
 			let cfg = _.extend({}, this.getParticleSystem().defaultSpawnOptions(), updateSet);
 
 			this.opt = emitterOptionsFromConfig(cfg);

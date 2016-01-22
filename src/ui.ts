@@ -7,15 +7,10 @@ var dat: any;
 
 module App {
 
-	// import VWD = GpuParticles.ValueWithDistribution;
-	// import SER = GpuParticles.StartEndRange;
-	// import ParticleColor = GpuParticles.ParticleColor;
-	import ValueTypes2 = GpuParticles.ValueTypes2;
-	import ValueFactory2 = GpuParticles.ValueFactory2;
+	import ValueType = GpuParticles.ValueType;
+	import ValueFactory = GpuParticles.ValueFactory;
 	import EmitterOptions = GpuParticles.EmitterOptions;
 	import Emitter = GpuParticles.Emitter;
-
-	// type VWD_SER_number = ValueWithDistribution<StartEndRange<number>>;
 
 	export class UI {
 
@@ -107,16 +102,16 @@ module App {
 			*/
 		}
 
-		private addControls<U>(gui: any, name: string, valueFactory: ValueFactory2<U>,
+		private addControls<U>(gui: any, name: string, valueFactory: ValueFactory<U>,
 			min: number, max: number,
 		  dmin: number, dmax: number){
 			let type = valueFactory.getType(),
 			    uiWidgetFactory = {};
 
-			uiWidgetFactory[ValueTypes2.NUMBER] = addNum;
-			uiWidgetFactory[ValueTypes2.VECTOR2] = noop;
-			uiWidgetFactory[ValueTypes2.VECTOR3] = noop;
-			uiWidgetFactory[ValueTypes2.COLOR] = noop;
+			uiWidgetFactory[ValueType.NUMBER] = addNum;
+			uiWidgetFactory[ValueType.VECTOR2] = noop;
+			uiWidgetFactory[ValueType.VECTOR3] = noop;
+			uiWidgetFactory[ValueType.COLOR] = noop;
 
 			function addNum(){
 				gui.add(valueFactory, 'baseValue', min, max).name(name);

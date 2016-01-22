@@ -18,6 +18,7 @@
         "./src/particles/emitter.ts",
         "./src/particles/emitterOptions.ts",
         "./src/particles/gpuParticles.ts",
+        "./src/particles/valueFactory.ts",
         "./src/particles/valueTypes.ts",
         "./src/ui.ts",
         "./src/utils/http.ts",
