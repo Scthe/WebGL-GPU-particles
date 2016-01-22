@@ -12,8 +12,8 @@ module GpuParticles {
 
 
   export class ValueConfig<T> {
-      private _baseValue: StartEndValues<Value<T>>;
-      private _distribution: number;
+      _baseValue: StartEndValues<Value<T>>;
+      _distribution: number;
 
       constructor(start: Value<T>, end?: Value<T>){
         this._baseValue = new StartEndValues(start, end);

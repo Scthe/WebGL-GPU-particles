@@ -12,6 +12,18 @@ module App {
 	import EmitterOptions = GpuParticles.EmitterOptions;
 	import Emitter = GpuParticles.Emitter;
 
+	enum ValueMode {
+		RANGE, VALUE
+	}
+
+	interface ValueFactoryUI {
+		mode: ValueMode,
+		min: number,
+		max: number,
+		distr_min: number,
+		distr_max: number
+	}
+
 	export class UI {
 
 		constructor(){
@@ -21,11 +33,12 @@ module App {
 			console.log('ui init');
 			let gui = new dat.GUI();
 
-			// general
+			// general options
 			UI.addColorCtrls(gui, config.background, 'background', v => {
 				renderer.setClearColor(config.background);
 			});
 
+			// for all emitters
 			let emOpts = app.getParticleSystem().getEmitters();
 			_.each(emOpts, (v) =>{
 				this.addEmitterControls(gui, v);
@@ -38,20 +51,22 @@ module App {
 			folder.open();
 
 			folder.add(emitter, 'visible');
+			/*
 			folder.add(emitterOpt, 'count', 1000, 1000000).onFinishChange(function(value) {
 				// emitterOpt.count = value;
 				emitter.init(emitterOpt);
 			});
 			folder.add(emitterOpt, 'spawnRate', 100, 50000);
 			// UI.addVectorCtrls(folder, '', emitterOpt.emitterPosition, 500); // TODO fix
+			*/
 
-			// lifetime
-			// UI.assertType(emitterOpt.lifetime, 'ValueWithDistribution');
-			// let ltVWD: VWD<number> = <any>emitterOpt.lifetime;
-			// UI.assertType(ltVWD.value, 'number');
-			// folder.add(ltVWD, 'value', 0.5, 7).name('lifetime');
-			// folder.add(ltVWD, 'distribution', 0, 3).name('lifetime rand');
-			this.addControls(folder, 'lifetime', emitterOpt.lifetime, 0.5,7, 0,3);
+			this.addControls(folder, 'lifetime', emitterOpt.lifetime, {
+				mode: ValueMode.VALUE,
+				min: 0.5,
+				max: 7,
+				distr_min: 0,
+				distr_max: 3
+			});
 
 			/*
 			// initialPosition
@@ -69,15 +84,27 @@ module App {
 			UI.assertType(iv.value, 'Vector3');
 			// UI.addVectorCtrls(innerFolder, '', iv.value, 50); // TODO - may require serious changes, see note in emitter.ts
 			innerFolder.add(iv, 'distribution', 0, 255).name('rand');
+			*/
 
-			// turbulenceOverLife
 			innerFolder = folder.addFolder('turbulence');
-			UI.addVWD_SER_number_Ctrls(innerFolder, '', emitterOpt.turbulenceOverLife);
+			this.addControls(innerFolder, 'turbulence', emitterOpt.turbulenceOverLife, {
+				mode: ValueMode.RANGE,
+				min: 0.0,
+				max: 1.0,
+				distr_min: 0,
+				distr_max: 1.0
+			});
 
-			// sizeOverLife
 			innerFolder = folder.addFolder('size');
-			UI.addVWD_SER_number_Ctrls(innerFolder, '', emitterOpt.sizeOverLife);
+			this.addControls(innerFolder, 'size', emitterOpt.sizeOverLife, {
+				mode: ValueMode.RANGE,
+				min: 0.0,
+				max: 0.99,
+				distr_min: 0,
+				distr_max: 1.0
+			});
 
+			/*
 			// colorOverLife
 			innerFolder = folder.addFolder('color');
 			UI.assertType(emitterOpt.colorOverLife, 'ValueWithDistribution');
@@ -95,30 +122,58 @@ module App {
 				let col: any = emitter.getEmitterOptions().colorOverLife;
 				col.distribution = v;
 			});
-
-			// opacityOverLife
-			innerFolder = folder.addFolder('opacity');
-			UI.addVWD_SER_number_Ctrls(innerFolder, '', emitterOpt.opacityOverLife);
 			*/
+
+			innerFolder = folder.addFolder('opacity');
+			this.addControls(innerFolder, 'opacity', emitterOpt.opacityOverLife, {
+				mode: ValueMode.RANGE,
+				min: 0.0,
+				max: 1.0,
+				distr_min: 0,
+				distr_max: 1.0
+			});
 		}
 
-		private addControls<U>(gui: any, name: string, valueFactory: ValueFactory<U>,
-			min: number, max: number,
-		  dmin: number, dmax: number){
+		private addControls<U>(gui: any, name: string, valueFactory: ValueFactory<U>, opt: ValueFactoryUI){
 			let type = valueFactory.getType(),
-			    uiWidgetFactory = {};
+					widgetFactory = this.getUIWidgetFactory(type);
 
-			uiWidgetFactory[ValueType.NUMBER] = addNum;
-			uiWidgetFactory[ValueType.VECTOR2] = noop;
-			uiWidgetFactory[ValueType.VECTOR3] = noop;
-			uiWidgetFactory[ValueType.COLOR] = noop;
-
-			function addNum(){
-				gui.add(valueFactory, 'baseValue', min, max).name(name);
-				gui.add(valueFactory, 'distribution', dmin, dmax).name(`${name} rand`);
-			}
-			function noop(){}
+			widgetFactory(gui, name, valueFactory, opt);
 		}
+
+		private getUIWidgetFactory(type: ValueType): any{
+			let uiWidgetFactory = {};
+			uiWidgetFactory[ValueType.NUMBER] = UI.addNumberUI;
+			uiWidgetFactory[ValueType.VECTOR3] = UI.addVec3UI;
+			uiWidgetFactory[ValueType.COLOR] = UI.addColUI;
+
+			let f = uiWidgetFactory[type];
+
+			if (f === undefined){
+				throw new Error(`No uiWidgetFactory for ${ValueType[type]}(${type})`);
+			}
+			return f;
+		}
+
+		private static addNumberUI(gui: any, name: string, valueFactory: ValueFactory<number>, opt: ValueFactoryUI){
+			let cfg = valueFactory.getConfig(),
+			    bv = cfg._baseValue;
+
+			if (opt.mode === ValueMode.VALUE){
+				gui.add(bv, 'start', opt.min, opt.max).name(name);
+			} else {
+				gui.add(bv, 'start', opt.min, opt.max).name(`${name} start`);
+				gui.add(bv, 'end', opt.min, opt.max).name(`${name} end`);
+			}
+			gui.add(cfg, '_distribution', opt.distr_min, opt.distr_max).name(`${name} rand`);
+		}
+
+		private static addVec3UI(){
+		}
+
+		private static addColUI(){
+		}
+
 /*
 		static addVectorCtrls(gui, name: string, pos: any, range: number){
 			let vv = new THREE.Vector3();
