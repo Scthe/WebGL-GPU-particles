@@ -50,17 +50,14 @@ module App {
 			    folder = gui.addFolder('Emitter'), innerFolder;
 			folder.open();
 
-			folder.add(emitter, 'visible');
-			/*
-			folder.add(emitterOpt, 'count', 1000, 1000000).onFinishChange(function(value) {
-				// emitterOpt.count = value;
-				emitter.init(emitterOpt);
+			folder.add(emitter, 'visible').name('Visible');
+			folder.add(emitterOpt, 'count', 1000, 1000000).name('Particle count').onFinishChange(function(value) {
+				emitter.recreateWithParticleCount(value);
 			});
-			folder.add(emitterOpt, 'spawnRate', 100, 50000);
+			folder.add(emitterOpt, 'spawnRate', 100, 50000).name('Spawn rate');
 			// UI.addVectorCtrls(folder, '', emitterOpt.emitterPosition, 500); // TODO fix
-			*/
 
-			this.addControls(folder, 'lifetime', emitterOpt.lifetime, {
+			this.addControls(folder, 'Lifetime', emitterOpt.lifetime, {
 				mode: ValueMode.VALUE,
 				min: 0.5,
 				max: 7,
@@ -78,6 +75,7 @@ module App {
 			});
 
 			// TODO - may require serious changes, see note in emitter.ts
+			/*
 			innerFolder = folder.addFolder('Initial Velocity');
 			this.addControls(innerFolder, '', emitterOpt.initialVelocity, { // TODO not working as a vector
 				mode: ValueMode.VALUE,
@@ -86,8 +84,9 @@ module App {
 				distr_min: 0,
 				distr_max: 1.0
 			});
+			*/
 
-			innerFolder = folder.addFolder('turbulence');
+			innerFolder = folder.addFolder('Turbulence');
 			this.addControls(innerFolder, '', emitterOpt.turbulenceOverLife, {
 				mode: ValueMode.RANGE,
 				min: 0.0,
@@ -96,7 +95,7 @@ module App {
 				distr_max: 1.0
 			});
 
-			innerFolder = folder.addFolder('size');
+			innerFolder = folder.addFolder('Size');
 			this.addControls(innerFolder, '', emitterOpt.sizeOverLife, {
 				mode: ValueMode.RANGE,
 				min: 0.0,
@@ -105,16 +104,16 @@ module App {
 				distr_max: 1.0
 			});
 
-			innerFolder = folder.addFolder('color');
+			innerFolder = folder.addFolder('Color');
 			this.addControls(innerFolder, 'color', emitterOpt.colorOverLife, {
 				mode: ValueMode.RANGE,
 				min: 0.0,
 				max: 0.0,
 				distr_min: 0,
-				distr_max: 1.0
+				distr_max: 0.05
 			});
 
-			innerFolder = folder.addFolder('opacity');
+			innerFolder = folder.addFolder('Opacity');
 			this.addControls(innerFolder, '', emitterOpt.opacityOverLife, {
 				mode: ValueMode.RANGE,
 				min: 0.0,

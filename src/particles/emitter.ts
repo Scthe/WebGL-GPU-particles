@@ -71,6 +71,11 @@ module GpuParticles {
 			}
 		}
 
+		recreateWithParticleCount(particleCount: number){
+			this.opt.count = particleCount;
+			this.init.call(this, undefined); // forcing TS to accept this call (secret API)
+		}
+
 		private cleanBuffers(){
 			if (this.particlePointsObject === undefined) return;
 
@@ -198,6 +203,8 @@ module GpuParticles {
 		}
 
 		private updateEmitterOptions(updateSet: any): void {
+			if (this.opt !== undefined && updateSet === undefined) return;
+
 			// collect config
 			let cfg = _.extend({}, this.getParticleSystem().defaultSpawnOptions(), updateSet);
 

@@ -125,8 +125,8 @@ module GpuParticles {
   export function colorTransformsOptions(): ValueTransformOptions {
     return {
       mul: 255,
-      clampMin: 0,
-      clampMax: 255,
+      // clampMin: 0,
+      // clampMax: 255,
       isInt: true
     };
   }
@@ -246,9 +246,16 @@ module GpuParticles {
     getValue(numberProvider: NumberProvider, value: THREE.Color): THREE.Color {
       let valueAsVec: THREE.Vector3 = new THREE.Vector3(value.r, value.g, value.b),
           vec3Converter = getValueConverter<THREE.Vector3>(ValueType.VECTOR3),
-          newValues = vec3Converter.getValue(numberProvider, valueAsVec);
+          newValues = vec3Converter.getValue(numberProvider, valueAsVec),
+          arr = newValues.toArray();
 
-      return (new THREE.Color()).fromArray(newValues.toArray());
+      for (let i = 0; i < arr.length; i++){
+        let v = arr[i];
+        while(v < 0){ v += 255; }
+        arr[i] = Math.floor(v % 256);
+      }
+
+      return (new THREE.Color()).fromArray(arr);
     }
   }
   declareValueConverter(ValueType.COLOR, new ColorValueConverter());
