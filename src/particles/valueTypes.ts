@@ -65,7 +65,7 @@ module GpuParticles {
     NUMBER, VECTOR2, VECTOR3, COLOR
   }
 
-  function getValueType(vv: any): ValueType {
+  export function getValueType(vv: any): ValueType {
     return (typeof vv === 'number')      ? ValueType.NUMBER :
            (vv instanceof THREE.Color)   ? ValueType.COLOR :
            (vv instanceof THREE.Vector3) ? ValueType.VECTOR3 :
@@ -80,8 +80,8 @@ module GpuParticles {
   export type StartEndLens<U> = (v: StartEndValues<U>) => U;
 
   export class StartEndValues<R> {
-    private start: R;
-    private end: R;
+    start: R;
+    end: R;
 
     constructor(start: R, end?: R){
       this.start = start;
