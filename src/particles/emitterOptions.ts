@@ -58,10 +58,10 @@ module GpuParticles {
 
 			lifetime           : ValueNum('lifetime'),
 			initialPosition    : ValueVec3('initialPosition'),
-			initialVelocity    : ValueVec3('initialVelocity', {clampMin: -127, clampMax: 127}), // TODO what if initVel.value=[400,0,]
+			initialVelocity    : ValueVec3('initialVelocity',   {isInt: true, mul: 254, clampMin: -127, clampMax: 127}), // TODO what if initVel.value=[400,0,]
 			turbulenceOverLife : ValueNum('turbulenceOverLife', {isInt: true, mul: 255, clampMin: 0, clampMax: 255}),
-			sizeOverLife       : ValueNum('sizeOverLife', {isInt: true, mul: 255, clampMin: 0, clampMax: 255}),
-			opacityOverLife    : ValueNum('opacityOverLife', {isInt: true, mul: 255, clampMin: 0, clampMax: 255}),
+			sizeOverLife       : ValueNum('sizeOverLife',       {isInt: true, mul: 255, clampMin: 0, clampMax: 255}),
+			opacityOverLife    : ValueNum('opacityOverLife',    {isInt: true, mul: 255, clampMin: 0, clampMax: 255}),
 			colorOverLife      : ValueCol('colorOverLife')
 		}
 

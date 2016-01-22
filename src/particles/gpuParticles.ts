@@ -19,7 +19,7 @@ module GpuParticles {
 		// per particle values
 		lifetime:                 new ValueConfig(0.2).distribution(0.5),
 		initialPosition:          new ValueConfig(0.0).distribution(0.5),
-		initialVelocity:          new ValueConfig(0.0).distribution(2.0),
+		initialVelocity:          new ValueConfig(0.0).distribution(0.3),
 		turbulenceOverLife:       new ValueConfig(127).distribution(0.0),
 		sizeOverLife:    new ValueConfig(5.0, 20.0).distribution(1.0),
 		colorOverLife:   new ValueConfig(0xE65A46, 0x00FFFF).distribution(0.1),

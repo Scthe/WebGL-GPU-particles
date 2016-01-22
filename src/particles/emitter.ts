@@ -106,7 +106,7 @@ module GpuParticles {
 			let o = this.opt,
 					__pack = Utils.encodeUint8VectorAsFloat,
 					emitterPosition: THREE.Vector3 = _.isFunction(o.emitterPosition)?
-					    (<any>o.emitterPosition)(this.opt, clockDeltaData)
+					    (<any>o.emitterPosition).call(this.opt, clockDeltaData)
 							: o.emitterPosition;
 
 			let position       : THREE.Vector3 = o.initialPosition.getValue().add(emitterPosition),
@@ -198,9 +198,11 @@ module GpuParticles {
 		}
 
 		private updateEmitterOptions(updateSet: any): void {
+			// collect config
 			let cfg = _.extend({}, this.getParticleSystem().defaultSpawnOptions(), updateSet);
 
-			this.opt = emitterOptionsFromConfig(cfg);
+			// there may be some loose properties on cfg f.e. vertical/horizontalSpeed
+			this.opt = _.extend({}, cfg, emitterOptionsFromConfig(cfg));
 
 			this.visible = this.opt.visible;
 		}

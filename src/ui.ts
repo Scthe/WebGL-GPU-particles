@@ -84,7 +84,7 @@ module App {
 				min: -0.5,
 				max: 0.5,
 				distr_min: 0,
-				distr_max: 255.0
+				distr_max: 1.0
 			});
 
 			innerFolder = folder.addFolder('turbulence');
