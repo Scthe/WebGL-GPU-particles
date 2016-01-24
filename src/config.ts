@@ -32,9 +32,7 @@ const config = {
 				name: 'fire projectile',
 				count: 1000,
 				spawnRate: 100,
-				// sizeOverLife: new ValueWithDistribution(new StartEndRange(0.12, 0.93), 0.5),
-				sizeOverLife:       new ValueConfig(0.2, 1.0),
-				initialVelocity:    new ValueConfig(0.0).distribution(0.0),
+
 				turbulenceOverLife: new ValueConfig(0.0, 1.0),
 				opacityOverLife:    new ValueConfig(1.0, 0.3),
 

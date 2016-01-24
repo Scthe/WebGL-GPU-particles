@@ -85,7 +85,7 @@ module GpuParticles {
 				this.particlePointsObject.geometry = undefined;
       }
 
-			// TODO disposing material may cleanup shaders, which we don't want
+			// disposing material may cleanup shaders, which we don't want
 		}
 
 		private initBuffers() {
