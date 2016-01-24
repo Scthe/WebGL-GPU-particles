@@ -22,7 +22,7 @@ module.exports = {
   },
   shaders: {
     cwd: 'src',
-    dest: '.tmp/',
+    dest: '<%= buildDir %>',
     expand: true,
     src: [
       'shaders/*.shader',

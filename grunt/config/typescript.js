@@ -11,7 +11,7 @@ module.exports = {
   },
   compileTs: {
     src: ['src/**/*.ts'],
-    // out: '<%= buildDir %>/app.js',
-    out: '.tmp/app.js',
+    out: '<%= buildDir %>/app.js',
+    // out: '.tmp/app.js',
   }
 };
