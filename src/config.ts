@@ -24,9 +24,9 @@ const config = {
 	},
 
 	particles: {
-		noiseTexture: 'vendor/textures/perlin-512.png',
-		spriteTexture: 'vendor/textures/particle2.png',
-		simulationShader: 'shaders/particleSim.shader',
+		noiseTexture: 'build/vendor/textures/perlin-512.png',
+		spriteTexture: 'build/vendor/textures/particle2.png',
+		simulationShader: 'build/shaders/particleSim.shader',
 		emitters: [
 			{
 				name: 'fire projectile',
